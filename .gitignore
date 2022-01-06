@@ -1,0 +1,11 @@
+node_modules/
+build/
+.idea
+/.project
+npm-debug.log
+data/production
+data/test
+package-lock.json
+secrets.json
+.openzeppelin/unknown-1337.json
+/tmp
