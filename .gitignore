@@ -1,11 +1,15 @@
 node_modules/
-build/
 .idea
 /.project
 npm-debug.log
 data/production
 data/test
 package-lock.json
-secrets.json
+secrets*
 .openzeppelin/unknown-1337.json
 /tmp
+build/contracts/*
+!build/contracts/Migrations.json
+!build/contracts/OrderUpgradeable.json
+!build/contracts/USDC.json
+!build/contracts/WETH.json
