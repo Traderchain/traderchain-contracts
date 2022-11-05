@@ -8,14 +8,14 @@ contract SystemVault is
   Context,
   AccessControlEnumerable
 {
-    address public immutable systemFactory;
-    uint256 public immutable systemId;
-  
-    constructor(address _systemFactory, uint256 _systemId) {
-      _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-      
-      systemFactory = _systemFactory;
-      systemId = _systemId;
-    }
+  address public immutable systemFactory;
+  uint256 public immutable systemId;
+
+  constructor(address _systemFactory, uint256 _systemId) {
+    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
+    
+    systemFactory = _systemFactory;
+    systemId = _systemId;
+  }
 
 }

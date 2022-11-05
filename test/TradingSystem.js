@@ -23,7 +23,7 @@ describe("TradingSystem", function () {
     const systemId = await systemContract.currentSystemId();
     Util.log({systemId});
     
-    await systemContract.mint(signers[0].address);    
+    await systemContract.mint(signers[0].address);
     expect(await systemContract.ownerOf(systemId)).to.equal(signers[0].address);
     
     const vault = await systemContract.getSystemVault(systemId);
@@ -36,6 +36,9 @@ describe("TradingSystem", function () {
     Util.log({vaultSystemFactory, vaultSystemId});
     expect(vaultSystemFactory).to.equal(systemContract.address);
     expect(vaultSystemId).to.equal(systemId);
+    
+    const DEFAULT_ADMIN_ROLE = await vaultContract.DEFAULT_ADMIN_ROLE();
+    expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, systemContract.address)).to.equal(true);
   });
   
 });
