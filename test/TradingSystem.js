@@ -15,16 +15,27 @@ describe("TradingSystem", function () {
     signers = await ethers.getSigners();
     
     const TradingSystem = await ethers.getContractFactory("TradingSystem");
-    systemContract = await TradingSystem.deploy("Traderchain Trading System", "TTS", "https://traderchain.org/system/");
+    systemContract = await TradingSystem.deploy("https://traderchain.org/system/");
     Util.log({'systemContract': systemContract.address});
   });
 
-  it("Should mint a trading system", async function () {
-    const tokenId = await systemContract.currentTokenId();
-    Util.log({tokenId});
-    await systemContract.mint(signers[0].address);
+  it("Should mint a trading system and create a system vault", async function () {
+    const systemId = await systemContract.currentSystemId();
+    Util.log({systemId});
     
-    expect(await systemContract.ownerOf(tokenId)).to.equal(signers[0].address);
+    await systemContract.mint(signers[0].address);    
+    expect(await systemContract.ownerOf(systemId)).to.equal(signers[0].address);
+    
+    const vault = await systemContract.getSystemVault(systemId);
+    Util.log({vault});
+    expect(vault).not.to.equal(ADDRESS_ZERO);
+    
+    const vaultContract = await ethers.getContractAt("SystemVault", vault);
+    const vaultSystemFactory = await vaultContract.systemFactory();
+    const vaultSystemId = await vaultContract.systemId();
+    Util.log({vaultSystemFactory, vaultSystemId});
+    expect(vaultSystemFactory).to.equal(systemContract.address);
+    expect(vaultSystemId).to.equal(systemId);
   });
   
 });
