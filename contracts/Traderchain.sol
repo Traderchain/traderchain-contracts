@@ -101,7 +101,6 @@ contract Traderchain is
     address tokenIn = USDC;
     address tokenOut = WETH;
     uint256 amountIn = buyAmount;
-    address recipient = vault;
       
     IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
@@ -111,7 +110,7 @@ contract Traderchain is
         tokenIn: tokenIn,
         tokenOut: tokenOut,
         fee: poolFee,
-        recipient: recipient,
+        recipient: vault,
         deadline: block.timestamp,
         amountIn: amountIn,
         amountOutMinimum: 0,

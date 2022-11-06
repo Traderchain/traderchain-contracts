@@ -85,8 +85,8 @@ describe("Traderchain", function () {
     const vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
     const vaultWethBalance = await Util.wethToken.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});
-    expect(vaultUsdcBalance).to.equal(0);
-    expect(vaultWethBalance).to.equal(wethAmount);
+    expect(vaultUsdcBalance).to.equal(newSystemFund);
+    expect(vaultWethBalance).to.equal(newSystemAsset);
   });
   
 });
