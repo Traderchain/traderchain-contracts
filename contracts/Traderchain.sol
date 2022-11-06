@@ -16,6 +16,9 @@ contract Traderchain is
   
   ITradingSystem public immutable tradingSystem;
   
+  // Tracking system funds (USDC only for now)
+  mapping(uint256 => uint256) public systemFunds;
+  
   // Tracking investor funds in each system (USDC only for now)
   mapping(uint256 => mapping(address => uint256)) public investorFunds;
   
@@ -28,6 +31,10 @@ contract Traderchain is
     tradingSystem = ITradingSystem(_tradingSystem);
   }
 
+  function getSystemFunds(uint256 systemId) public view virtual returns (uint256) {
+    return systemFunds[systemId];
+  }
+  
   function getInvestorFunds(uint256 systemId, address investor) public view virtual returns (uint256) {
     return investorFunds[systemId][investor];
   }
@@ -47,7 +54,9 @@ contract Traderchain is
     IERC20 token = IERC20(tokenAddress);
     
     token.transferFrom(investor, vault, amount);
+    
     investorFunds[systemId][investor] += amount;
+    systemFunds[systemId] += amount;
   }
   
 }

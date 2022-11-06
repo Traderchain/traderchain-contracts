@@ -58,6 +58,10 @@ describe("Traderchain", function () {
     Util.log({vaultBalance});
     expect(vaultBalance).to.equal(usdcAmount);
     
+    let systemFund = await tc.getSystemFunds(systemId);
+    Util.log({systemFund});
+    expect(systemFund).to.equal(usdcAmount);
+    
     let investorFund = await tc.getInvestorFunds(systemId, investor1.address);
     Util.log({investorFund});
     expect(investorFund).to.equal(usdcAmount);
