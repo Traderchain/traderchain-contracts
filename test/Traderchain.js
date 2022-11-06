@@ -26,11 +26,28 @@ describe("Traderchain", function () {
     system = Util.system;
   });
 
-  it("A trader can create a trading system", async function () {
+  it("A trader can create a trading system including a vault", async function () {
     const systemId = await system.currentSystemId();
+    Util.log({systemId});
     
-    await tc.connect(trader).mintTradingSystem();
-    expect(await system.ownerOf(systemId)).to.equal(trader.address);
+    await tc.connect(trader).createTradingSystem();
+    expect(await system.getSystemTrader(systemId)).to.equal(trader.address);
+    
+    const vault = await system.getSystemVault(systemId);
+    Util.log({vault});
+    expect(vault).not.to.equal(ADDRESS_ZERO);
+    
+    const vaultContract = await ethers.getContractAt("SystemVault", vault);
+    const vaultTraderchain = await vaultContract.traderchain();
+    const vaultTradingSystem = await vaultContract.tradingSystem();
+    const vaultSystemId = await vaultContract.systemId();
+    Util.log({vaultTraderchain, vaultTradingSystem, vaultSystemId});
+    expect(vaultTraderchain).to.equal(tc.address);
+    expect(vaultTradingSystem).to.equal(system.address);
+    expect(vaultSystemId).to.equal(systemId);
+    
+    const DEFAULT_ADMIN_ROLE = await vaultContract.DEFAULT_ADMIN_ROLE();
+    expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, system.address)).to.equal(true);
   });
   
   it("An investor can deposit funds to a system vault", async function () {
@@ -47,17 +64,14 @@ describe("Traderchain", function () {
     
     let systemFund = await tc.getSystemFund(systemId);
     Util.log({systemFund});
-    expect(systemFund).to.equal(usdcAmount);
-    
-    let investorFund = await tc.getInvestorFund(systemId, investor1.address);
-    Util.log({investorFund});
-    expect(investorFund).to.equal(usdcAmount);
+    expect(systemFund).to.equal(usdcAmount);    
   });
   
   it("A trader can place a buy order for his system", async function () {
     const systemId = 1;
     const usdcAmount = Util.amountBN(100, 6);
     const vault = await system.getSystemVault(systemId);
+    Util.log({usdcAmount});
     
     let systemFund = await tc.getSystemFund(systemId); 
     let systemAsset = await tc.getSystemAsset(systemId);    

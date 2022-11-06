@@ -12,14 +12,12 @@ contract Traderchain is
   Context,
   AccessControlEnumerable
 {
-
   address constant public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; 
   address constant public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   
   uint24 public constant poolFee = 3000;
   
-  ISwapRouter private swapRouter;
-  
+  ISwapRouter private swapRouter;  
   ITradingSystem private tradingSystem;
   
   // Tracking system funds (USDC only for now)
@@ -27,9 +25,6 @@ contract Traderchain is
   
   // Tracking system assets (WETH only for now)
   mapping(uint256 => uint256) public systemAssets;
-  
-  // Tracking investor funds in each system (USDC only for now)
-  mapping(uint256 => mapping(address => uint256)) public investorFunds;
   
   /***
    * Public functions
@@ -46,7 +41,7 @@ contract Traderchain is
   }
   
   modifier onlySystemOwner(uint256 systemId) {
-    require(_msgSender() == tradingSystem.ownerOf(systemId), "Traderchain: must be system owner");    
+    require(_msgSender() == tradingSystem.getSystemTrader(systemId), "Traderchain: must be system owner");
     _;
   }
   
@@ -62,14 +57,9 @@ contract Traderchain is
     return systemAssets[systemId];
   }
   
-  function getInvestorFund(uint256 systemId, address investor) public view virtual returns (uint256) {
-    return investorFunds[systemId][investor];
-  }
-
-  function mintTradingSystem() public {
-    address toAddress = _msgSender();
-    
-    tradingSystem.mint(toAddress);
+  function createTradingSystem() public {
+    address trader = _msgSender();    
+    tradingSystem.createSystem(trader);
   }
   
   // Investor deposits funds to a trading system vault and subscribe to a system
@@ -83,7 +73,6 @@ contract Traderchain is
     
     token.transferFrom(investor, vault, amount);
     
-    investorFunds[systemId][investor] += amount;
     systemFunds[systemId] += amount;
   }
   

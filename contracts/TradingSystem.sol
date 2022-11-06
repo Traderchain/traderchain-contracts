@@ -4,7 +4,7 @@ pragma solidity 0.8.10;
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 import "./interfaces/ISystemVault.sol";
 import "./SystemVault.sol";
@@ -12,16 +12,15 @@ import "./SystemVault.sol";
 contract TradingSystem is
   Context,
   AccessControlEnumerable,
-  ERC721Enumerable
+  ERC1155
 {
   using Counters for Counters.Counter;
   Counters.Counter private _systemIdTracker;
 
-  bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+  address public immutable traderchain;  
   
-  address public immutable traderchain;
-  
-  string public baseURI;
+  // Mapping system id to trader address
+  mapping(uint256 => address) public systemTraders;
   
   // Mapping system id to vault address
   mapping(uint256 => address) public systemVaults;
@@ -29,14 +28,12 @@ contract TradingSystem is
   /***
    * Public functions
    */
-  constructor(address _traderchain, string memory _baseURI) ERC721("Traderchain Trading System", "TCTS") {
+  constructor(address _traderchain, string memory uri) ERC1155(uri) {
     traderchain = _traderchain;
-    baseURI = _baseURI;
 
-    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-    _setupRole(MINTER_ROLE, _msgSender());
+    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());    
     
-    _systemIdTracker.increment();            
+    _systemIdTracker.increment();
   }
 
   modifier onlyTraderchain() {
@@ -45,27 +42,40 @@ contract TradingSystem is
   }
   
   modifier onlySystemOwner(uint256 systemId) {
-    require(_msgSender() == ownerOf(systemId), "TradingSystem: must be system owner");    
+    require(_msgSender() == systemTraders[systemId], "TradingSystem: must be system owner");    
     _;
-  }
-  
-  function mint(address toAddress) public virtual {
-    require(hasRole(MINTER_ROLE, _msgSender()), "TradingSystem: must have minter role to mint");
-
-    uint256 systemId = _systemIdTracker.current();
-
-    _mint(toAddress, systemId);
-    _createSystemVault(systemId);
-    
-    _systemIdTracker.increment();
   }
   
   function currentSystemId() public view virtual returns (uint256) {
     return _systemIdTracker.current();
   }
   
+  function getSystemTrader(uint256 systemId) public view virtual returns (address) {
+    return systemTraders[systemId];
+  }
+  
   function getSystemVault(uint256 systemId) public view virtual returns (address) {
     return systemVaults[systemId];
+  }
+  
+  function createSystem(address trader) public virtual 
+    onlyTraderchain
+  {  
+    uint256 systemId = _systemIdTracker.current();
+
+    systemTraders[systemId] = trader;
+    _systemIdTracker.increment();
+    
+    _createSystemVault(systemId);
+  }
+  
+  function mintShares(uint256 systemId, address toAddress, uint256 amount) public virtual 
+    onlyTraderchain
+  {
+    require(systemTraders[systemId] != address(0), "TradingSystem: systemId not exist");
+    require(amount > 0, "TradingSystem: amount is empty");
+    
+    _mint(toAddress, systemId, amount, "");
   }
   
   function approveFunds(uint256 systemId, address tokenAddress, uint256 amount) external 
@@ -75,7 +85,7 @@ contract TradingSystem is
     ISystemVault(vault).approve(tokenAddress, amount);
   }
   
-  function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC721Enumerable) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC1155) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
   
