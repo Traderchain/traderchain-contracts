@@ -26,6 +26,9 @@ contract Traderchain is
   // Tracking system assets (WETH only for now)
   mapping(uint256 => uint256) public systemAssets;
   
+  // Tracking system share prices (in USDC only for now)
+  mapping(uint256 => uint256) public systemSharePrices;
+  
   /***
    * Public functions
    */
@@ -57,25 +60,44 @@ contract Traderchain is
     return systemAssets[systemId];
   }
   
+  function getSystemSharePrice(uint256 systemId) public view virtual returns (uint256) {
+    return systemSharePrices[systemId];
+  }
+  
   function createTradingSystem() public {
     address trader = _msgSender();    
+    uint256 systemId = tradingSystem.currentSystemId();
+    
     tradingSystem.createSystem(trader);
+        
+    systemSharePrices[systemId] = uint256(10)**6; // 1 Share = 1 USDC
   }
   
-  // Investor deposits funds to a trading system vault and subscribe to a system
-  function depositFunds(uint256 systemId, address tokenAddress, uint256 amount) external {
-    require(tokenAddress == USDC, "Traderchain: only USDC can be deposited for now");
-    // TODO: Support funding from other ERC20 tokens
+  // Investors buy system shares with USDC
+  // TODO: Support funds from other ERC20 tokens
+  function buyShares(uint256 systemId, uint256 amount) external 
+    returns (uint256 numberOfShares)
+  {
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
+    require(amount > 0, "TraderChain: amount is empty");
     
-    address investor = _msgSender();            
+    uint256 sharePrice = systemSharePrices[systemId];
+    require(sharePrice > 0, "TraderChain: share price is empty");
+    
+    address investor = _msgSender();                
     address vault = tradingSystem.getSystemVault(systemId);
-    IERC20 token = IERC20(tokenAddress);
+    IERC20 fund = IERC20(USDC);
     
-    token.transferFrom(investor, vault, amount);
-    
+    // Case 1: system has empty funds
+    fund.transferFrom(investor, vault, amount);    
     systemFunds[systemId] += amount;
+    
+    numberOfShares = amount / sharePrice;
+    tradingSystem.mintShares(systemId, investor, numberOfShares);
+    
+    // TODO: Case 2: funds were allocated
   }
-  
+    
   // Trader places a buy order for his system
   function placeBuyOrder(uint256 systemId, uint256 buyAmount) external 
     onlySystemOwner(systemId) 

@@ -50,21 +50,32 @@ describe("Traderchain", function () {
     expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, system.address)).to.equal(true);
   });
   
-  it("An investor can deposit funds to a system vault", async function () {
+  it("An investor can buy system shares", async function () {
     const systemId = 1;
     const vault = await system.getSystemVault(systemId);        
     const usdcAmount = Util.amountBN(100, 6);
+    const sharePrice = await tc.getSystemSharePrice(systemId);
+    const expectedShares = usdcAmount.div(sharePrice);
+    Util.log({usdcAmount, sharePrice, expectedShares});
     
     await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
-    await tc.connect(investor1).depositFunds(systemId, USDC, usdcAmount);
     
-    let vaultBalance = await Util.usdcToken.balanceOf(vault);
+    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, usdcAmount);
+    await tc.connect(investor1).buyShares(systemId, usdcAmount);
+    Util.log({numberOfShares});
+    expect(numberOfShares).to.equal(expectedShares);
+    
+    const vaultBalance = await Util.usdcToken.balanceOf(vault);
     Util.log({vaultBalance});
     expect(vaultBalance).to.equal(usdcAmount);
     
-    let systemFund = await tc.getSystemFund(systemId);
+    const systemFund = await tc.getSystemFund(systemId);
     Util.log({systemFund});
-    expect(systemFund).to.equal(usdcAmount);    
+    expect(systemFund).to.equal(usdcAmount);
+    
+    const investorShares = await system.balanceOf(investor1.address, systemId);
+    Util.log({investorShares});
+    expect(investorShares).to.equal(numberOfShares);
   });
   
   it("A trader can place a buy order for his system", async function () {
