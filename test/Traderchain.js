@@ -50,11 +50,11 @@ describe("Traderchain", function () {
     expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, system.address)).to.equal(true);
   });
   
-  it("An investor can buy system shares", async function () {
+  it("An investor can buy system shares to initiate share issuance", async function () {
     const systemId = 1;
     const vault = await system.getSystemVault(systemId);        
     const usdcAmount = Util.amountBN(100, 6);
-    const sharePrice = await tc.getSystemSharePrice(systemId);
+    const sharePrice = await tc.currentSystemSharePrice(systemId);
     const expectedShares = usdcAmount.div(sharePrice);
     Util.log({usdcAmount, sharePrice, expectedShares});
     
@@ -80,7 +80,7 @@ describe("Traderchain", function () {
   
   it("A trader can place a buy order for his system", async function () {
     const systemId = 1;
-    const usdcAmount = Util.amountBN(100, 6);
+    const usdcAmount = Util.amountBN(50, 6);
     const vault = await system.getSystemVault(systemId);
     Util.log({usdcAmount});
     
@@ -94,7 +94,7 @@ describe("Traderchain", function () {
     Util.log({wethAmount});
     await tc.connect(trader).placeBuyOrder(systemId, usdcAmount);
 
-    const wethPrice = Util.amountFloat(usdcAmount,6) / Util.amountFloat(wethAmount);
+    const wethPrice = Util.amountFloat(usdcAmount,6) * (1 - 0.003) / Util.amountFloat(wethAmount); // 0.3% pool fee
     Util.log({wethPrice});
 
     const newSystemFund = systemFund.sub(usdcAmount);
@@ -113,5 +113,41 @@ describe("Traderchain", function () {
     expect(vaultUsdcBalance).to.equal(newSystemFund);
     expect(vaultWethBalance).to.equal(newSystemAsset);
   });
-  
+
+  it("An investor can buy more system shares", async function () {    
+    const systemId = 1;
+    
+    const wethPrice = await tc.getAssetPrice();    
+    Util.log({wethPrice: Util.amountFloat(wethPrice,6)});
+    
+    const nav = await tc.currentSystemNAV(systemId);
+    const sharePrice = await tc.currentSystemSharePrice(systemId);
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
+    
+  //   const vault = await system.getSystemVault(systemId);
+  //   const usdcAmount = Util.amountBN(100, 6);
+  //   const sharePrice = await tc.currentSystemSharePrice(systemId);
+  //   const expectedShares = usdcAmount.div(sharePrice);
+  //   Util.log({usdcAmount, sharePrice, expectedShares});
+  // 
+  //   await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
+  // 
+  //   const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, usdcAmount);
+  //   await tc.connect(investor1).buyShares(systemId, usdcAmount);
+  //   Util.log({numberOfShares});
+  //   expect(numberOfShares).to.equal(expectedShares);
+  // 
+  //   const vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
+  //   Util.log({vaultUsdcBalance});
+  //   expect(vaultUsdcBalance).to.equal(usdcAmount);
+  // 
+  //   const systemFund = await tc.getSystemFund(systemId);
+  //   Util.log({systemFund});
+  //   expect(systemFund).to.equal(usdcAmount);
+  // 
+  //   const investorShares = await system.balanceOf(investor1.address, systemId);
+  //   Util.log({investorShares});
+  //   expect(investorShares).to.equal(numberOfShares);
+  });
+    
 });

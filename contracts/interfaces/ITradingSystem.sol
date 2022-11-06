@@ -2,8 +2,12 @@
 pragma solidity 0.8.10;
 
 interface ITradingSystem {
-    function balanceOf(address account, uint256 systemId) external view returns (uint256);    
+    function balanceOf(address account, uint256 systemId) external view returns (uint256);  
     
+    function totalSupply(uint256 systemId) external view returns (uint256);
+
+    function exists(uint256 systemId) external view returns (bool);
+      
     function currentSystemId() external view returns (uint256);
     
     function getSystemTrader(uint256 systemId) external view returns (address);
