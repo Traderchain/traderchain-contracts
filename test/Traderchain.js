@@ -2,7 +2,7 @@ const { time, loadFixture } = require("@nomicfoundation/hardhat-network-helpers"
 const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { 
-  ADDRESS_ZERO, USDC, WETH, USDC_WHALE,
+  ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
   BigNumber, formatUnits, formatEther,
   Util
 } = require('../lib/util');
@@ -13,42 +13,29 @@ describe("Traderchain", function () {
   let investor1;
   
   let tc;
-  let systemContract;
+  let system;
   
   before(async () => {   
+    await Util.resetForkState();
     signers = await ethers.getSigners();
     trader = signers[0];
     investor1 = signers[1];
           
-    await Util.initContracts();      
-          
-    const TradingSystem = await ethers.getContractFactory("TradingSystem");
-    systemContract = await TradingSystem.deploy("https://traderchain.org/system/");
-    Util.log({'systemContract': systemContract.address});
-    
-    const Traderchain = await ethers.getContractFactory("Traderchain");
-    tc = await Traderchain.deploy(systemContract.address);
-    Util.log({'tc': tc.address});
-    
-    const MINTER_ROLE = await systemContract.MINTER_ROLE();
-    await systemContract.grantRole(MINTER_ROLE, tc.address);    
-    
-    const usdcAmount = Util.amountBN(1000, 6);
-    await Util.takeWhaleUSDC(investor1.address, usdcAmount);
+    await Util.initContracts();
+    tc = Util.tc;
+    system = Util.system;
   });
 
-  it("Should mint a trading system", async function () {
-    const systemId = await systemContract.currentSystemId();
-    const toAddress = signers[0].address;
-    Util.log({systemId, toAddress});
+  it("A trader can create a trading system", async function () {
+    const systemId = await system.currentSystemId();
     
-    await tc.connect(signers[0]).mintTradingSystem();
-    expect(await systemContract.ownerOf(systemId)).to.equal(toAddress);        
+    await tc.connect(trader).mintTradingSystem();
+    expect(await system.ownerOf(systemId)).to.equal(trader.address);
   });
   
-  it("Should deposit funds to a system vault", async function () {
+  it("An investor can deposit funds to a system vault", async function () {
     const systemId = 1;
-    const vault = await systemContract.getSystemVault(systemId);        
+    const vault = await system.getSystemVault(systemId);        
     const usdcAmount = Util.amountBN(100, 6);
     
     await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
@@ -58,14 +45,48 @@ describe("Traderchain", function () {
     Util.log({vaultBalance});
     expect(vaultBalance).to.equal(usdcAmount);
     
-    let systemFund = await tc.getSystemFunds(systemId);
+    let systemFund = await tc.getSystemFund(systemId);
     Util.log({systemFund});
     expect(systemFund).to.equal(usdcAmount);
     
-    let investorFund = await tc.getInvestorFunds(systemId, investor1.address);
+    let investorFund = await tc.getInvestorFund(systemId, investor1.address);
     Util.log({investorFund});
     expect(investorFund).to.equal(usdcAmount);
   });
   
+  it("A trader can place a buy order for his system", async function () {
+    const systemId = 1;
+    const usdcAmount = Util.amountBN(100, 6);
+    const vault = await system.getSystemVault(systemId);
+    
+    let systemFund = await tc.getSystemFund(systemId); 
+    let systemAsset = await tc.getSystemAsset(systemId);    
+    Util.log({systemFund, systemAsset});
+    
+    await system.connect(trader).approveFunds(systemId, USDC, usdcAmount);
+    
+    const wethAmount = await tc.connect(trader).callStatic.placeBuyOrder(systemId, usdcAmount);
+    Util.log({wethAmount});
+    await tc.connect(trader).placeBuyOrder(systemId, usdcAmount);
+
+    const wethPrice = Util.amountFloat(usdcAmount,6) / Util.amountFloat(wethAmount);
+    Util.log({wethPrice});
+
+    const newSystemFund = systemFund.sub(usdcAmount);
+    const newSystemAsset = systemAsset.add(wethAmount);
+    Util.log({newSystemFund, newSystemAsset});
+        
+    systemFund = await tc.getSystemFund(systemId); 
+    systemAsset = await tc.getSystemAsset(systemId); 
+    Util.log({systemFund, systemAsset});
+    expect(systemFund).to.equal(newSystemFund);
+    expect(systemAsset).to.equal(newSystemAsset);
+    
+    const vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
+    const vaultWethBalance = await Util.wethToken.balanceOf(vault);
+    Util.log({vaultUsdcBalance, vaultWethBalance});
+    expect(vaultUsdcBalance).to.equal(0);
+    expect(vaultWethBalance).to.equal(wethAmount);
+  });
   
 });
