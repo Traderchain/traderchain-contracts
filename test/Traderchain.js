@@ -54,6 +54,42 @@ describe("Traderchain", function () {
     expect(vaultWethBalance).to.equal(expectedSystemAsset);
   }
   
+  async function placeSellOrder() {
+    const systemId = 1;
+    const wethAmount = Util.amountBN(37, 15); // 0.037
+    const vault = await system.getSystemVault(systemId);
+    Util.log({wethAmount});
+    
+    let systemFund = await tc.getSystemFund(systemId); 
+    let systemAsset = await tc.getSystemAsset(systemId);    
+    Util.log({systemFund, systemAsset});
+    
+    await system.connect(trader).approveFunds(systemId, WETH, wethAmount);
+    
+    const usdcAmount = await tc.connect(trader).callStatic.placeSellOrder(systemId, wethAmount);
+    await tc.connect(trader).placeSellOrder(systemId, wethAmount);
+    Util.log({usdcAmount});    
+
+    const wethPrice = Util.amountFloat(usdcAmount,6) / (Util.amountFloat(wethAmount) * (1 - 0.003)); // -0.3% pool fee
+    Util.log({wethPrice});
+
+    const expectedSystemFund = systemFund.add(usdcAmount);
+    const expectedSystemAsset = systemAsset.sub(wethAmount);
+    Util.log({expectedSystemFund, expectedSystemAsset});
+        
+    systemFund = await tc.getSystemFund(systemId); 
+    systemAsset = await tc.getSystemAsset(systemId); 
+    Util.log({systemFund, systemAsset});
+    expect(systemFund).to.equal(expectedSystemFund);
+    expect(systemAsset).to.equal(expectedSystemAsset);
+    
+    const vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
+    const vaultWethBalance = await Util.wethToken.balanceOf(vault);
+    Util.log({vaultUsdcBalance, vaultWethBalance});
+    expect(vaultUsdcBalance).to.equal(expectedSystemFund);
+    expect(vaultWethBalance).to.equal(expectedSystemAsset);
+  }
+  
   /***
    * Start testing
    */
@@ -204,6 +240,10 @@ describe("Traderchain", function () {
 
   it("A trader can place another buy order", async function () {
     await placeBuyOrder();    
+  });
+  
+  it("A trader can place a sell order", async function () {
+    await placeSellOrder();    
   });
       
 });

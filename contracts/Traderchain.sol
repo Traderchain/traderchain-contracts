@@ -157,6 +157,26 @@ contract Traderchain is
     systemFunds[systemId] -= amountIn;
     systemAssets[systemId] += amountOut;
   }
+  
+  // Trader places a sell order for his system
+  function placeSellOrder(uint256 systemId, uint256 amountIn) external 
+    onlySystemOwner(systemId) 
+    returns (uint256 amountOut)
+  {      
+    uint256 systemAsset = systemAssets[systemId];
+    require(amountIn <= systemAsset, "Traderchain: not enough system assets");
+  
+    address vault = tradingSystem.getSystemVault(systemId);
+    address tokenIn = WETH;
+      
+    IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
+    IERC20(tokenIn).approve(address(swapRouter), amountIn);
+      
+    amountOut = _sellAsset(systemId, amountIn);
+        
+    systemAssets[systemId] -= amountIn;
+    systemFunds[systemId] += amountOut;
+  }
 
   /***
    * Private functions
@@ -170,6 +190,33 @@ contract Traderchain is
     address vault = tradingSystem.getSystemVault(systemId);
     address tokenIn = USDC;
     address tokenOut = WETH;
+          
+    IERC20(tokenIn).approve(address(swapRouter), amountIn);
+  
+    ISwapRouter.ExactInputSingleParams memory params = 
+      ISwapRouter.ExactInputSingleParams({
+        tokenIn: tokenIn,
+        tokenOut: tokenOut,
+        fee: poolFee,
+        recipient: vault,
+        deadline: block.timestamp,
+        amountIn: amountIn,
+        amountOutMinimum: 0,
+        sqrtPriceLimitX96: 0
+      });
+    
+    amountOut = swapRouter.exactInputSingle(params);
+  }
+  
+  function _sellAsset(uint256 systemId, uint256 amountIn) internal 
+    returns (uint256 amountOut)
+  {
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
+    require(amountIn > 0, "TraderChain: amountIn is empty");    
+    
+    address vault = tradingSystem.getSystemVault(systemId);
+    address tokenIn = WETH;
+    address tokenOut = USDC;
           
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
   
