@@ -31,8 +31,6 @@ describe("Traderchain", function () {
     let systemAsset = await tc.getSystemAsset(systemId);    
     Util.log({systemFund, systemAsset});
     
-    await system.connect(trader).approveFunds(systemId, tokenIn, amountIn);
-    
     const amountOut = await tc.connect(trader).callStatic.placeOrder(systemId, tokenIn, tokenOut, amountIn);
     await tc.connect(trader).placeOrder(systemId, tokenIn, tokenOut, amountIn);
     Util.log({amountOut});
@@ -225,5 +223,45 @@ describe("Traderchain", function () {
   it("A trader can place a sell order", async function () {
     await placeSellOrder();    
   });
-      
+
+  it("An investor can sell system shares and receive funds", async function () {
+    const systemId = 1;
+    let investorShares = await tc.getInvestorShares(systemId, investor1.address);
+    let investorFund = await Util.usdcToken.balanceOf(investor1.address);
+    const numberOfShares = investorShares.div(BigNumber.from(2));
+    const vault = await system.getSystemVault(systemId);    
+    Util.log({systemId, investorShares, investorFund, numberOfShares});
+
+    let nav = await tc.currentSystemNAV(systemId);
+    let sharePrice = await tc.currentSystemSharePrice(systemId);
+    let assetPrice = await tc.getAssetPrice();
+    let totalShares = await tc.totalSystemShares(systemId);
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
+
+    let systemFund = await tc.getSystemFund(systemId); 
+    let systemAsset = await tc.getSystemAsset(systemId);    
+    Util.log({systemFund, systemAsset});
+    
+    // Sell shares and receive funds
+    const amountOut = await tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares);
+    await tc.connect(investor1).sellShares(systemId, numberOfShares);
+    Util.log({amountOut});
+                
+    nav = await tc.currentSystemNAV(systemId);
+    sharePrice = await tc.currentSystemSharePrice(systemId);
+    assetPrice = await tc.getAssetPrice();
+    totalShares = await tc.totalSystemShares(systemId);
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
+
+    systemFund = await tc.getSystemFund(systemId); 
+    systemAsset = await tc.getSystemAsset(systemId);    
+    Util.log({systemFund, systemAsset});
+        
+    investorShares = await tc.getInvestorShares(systemId, investor1.address);
+    investorFund = await Util.usdcToken.balanceOf(investor1.address);
+    Util.log({investorShares, investorFund});
+    
+    // TODO: expect
+  });
+        
 });

@@ -9,6 +9,7 @@ import './interfaces/ISwapRouter.sol';
 import './interfaces/IUniswapV3Factory.sol';
 import './interfaces/IUniswapV3Pool.sol';
 import "./interfaces/ITradingSystem.sol";
+import "./interfaces/ISystemVault.sol";
 
 contract Traderchain is
   Context,
@@ -23,11 +24,11 @@ contract Traderchain is
   IUniswapV3Factory private swapFactory;
   ITradingSystem private tradingSystem;
     
-  // TODO: use erc20.balanceOf(vault) to track funds
-  // Tracking system funds (USDC only for now)
+  /// TODO: use erc20.balanceOf(vault) to track funds
+  /// Tracking system funds (USDC only for now)
   mapping(uint256 => uint256) public systemFunds;
   
-  // Tracking system assets (WETH only for now)
+  /// Tracking system assets (WETH only for now)
   mapping(uint256 => uint256) public systemAssets;
   
   /***
@@ -68,13 +69,13 @@ contract Traderchain is
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
   }
   
-  // Price of WETH in USDC (10^6)
+  /// Price of WETH in USDC (10^6)
   function getAssetPrice() public view returns (uint256) {
     uint256 pairPrice = getPairPrice(USDC, WETH);
     return (uint256(10)**18) / pairPrice;    
   }
   
-  // Current system NAV in USDC (10^6)
+  /// Current system NAV in USDC (10^6)
   function currentSystemNAV(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
     if (totalShares == 0)  return 0;
@@ -85,7 +86,7 @@ contract Traderchain is
     return fundValue + assetValue;
   }
   
-  // Current system share price in USDC (10^6)
+  /// Current system share price in USDC (10^6)
   function currentSystemSharePrice(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
     if (totalShares == 0)  return 10**3; // Init price: 1 Share = 0.001 USDC
@@ -97,13 +98,21 @@ contract Traderchain is
     return sharePrice;
   }
   
+  function totalSystemShares(uint256 systemId) public view virtual returns (uint256) {
+    return tradingSystem.totalSupply(systemId);
+  }
+  
+  function getInvestorShares(uint256 systemId, address investor) public view virtual returns (uint256) {
+    return tradingSystem.balanceOf(investor, systemId);
+  }
+  
   function createTradingSystem() public {
     address trader = _msgSender();    
     tradingSystem.createSystem(trader);        
   }
   
-  // Investors buy system shares with USDC
-  // TODO: Support funds from other ERC20 tokens
+  /// Investors buy system shares with USDC
+  /// TODO: Support funds from other ERC20 tokens
   function buyShares(uint256 systemId, uint256 amount) external 
     returns (uint256 numberOfShares)
   {
@@ -138,9 +147,39 @@ contract Traderchain is
     tradingSystem.mintShares(systemId, investor, numberOfShares);
   }
   
-  /***
-  * A trader places a buy/sell order for his own trading system
-  */
+  /// Investors sell system shares and receive funds
+  function sellShares(uint256 systemId, uint256 numberOfShares) external 
+    returns (uint256 amountOut)
+  {
+    address investor = _msgSender();    
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
+    require(numberOfShares > 0, "TraderChain: numberOfShares is empty");
+    require(numberOfShares <= getInvestorShares(systemId, investor), "TraderChain: numberOfShares is more than investor owning shares");
+        
+    address vault = tradingSystem.getSystemVault(systemId);    
+    uint256 totalShares = totalSystemShares(systemId);
+    
+    uint256 assetAmount = systemAssets[systemId] * numberOfShares / totalShares;    
+    if (assetAmount > 0) {
+      ISystemVault(vault).approve(WETH, assetAmount);
+      IERC20(WETH).transferFrom(vault, address(this), assetAmount);
+      uint256 usdcAmount = _swapAsset(systemId, WETH, USDC, assetAmount);
+      
+      systemFunds[systemId] += usdcAmount;
+      systemAssets[systemId] -= assetAmount;
+    } 
+    
+    uint256 nav = currentSystemNAV(systemId);
+    amountOut = nav * numberOfShares / totalShares;
+    
+    ISystemVault(vault).approve(USDC, amountOut);
+    IERC20(USDC).transferFrom(vault, investor, amountOut);
+    systemFunds[systemId] -= amountOut;
+                  
+    tradingSystem.burnShares(systemId, investor, numberOfShares);
+  }
+    
+  /// A trader places a buy/sell order for his own trading system  
   function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) public 
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
@@ -159,6 +198,7 @@ contract Traderchain is
   
     address vault = tradingSystem.getSystemVault(systemId);
       
+    ISystemVault(vault).approve(tokenIn, amountIn);
     IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
       

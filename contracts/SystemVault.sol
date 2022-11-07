@@ -27,7 +27,14 @@ contract SystemVault is
     _;
   }
 
-  function approve(address tokenAdress, uint256 amount) external onlyAdmin {
+  modifier onlyTraderchain() {
+    require(_msgSender() == traderchain, "SystemVault: must be called from Traderchain contract");
+    _;
+  }
+  
+  function approve(address tokenAdress, uint256 amount) external 
+    onlyTraderchain 
+  {
     IERC20(tokenAdress).approve(traderchain, amount);
   }
 

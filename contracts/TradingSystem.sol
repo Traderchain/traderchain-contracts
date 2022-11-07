@@ -70,20 +70,23 @@ contract TradingSystem is
     _createSystemVault(systemId);
   }
   
-  function mintShares(uint256 systemId, address toAddress, uint256 amount) public virtual 
+  function mintShares(uint256 systemId, address investor, uint256 shares) public virtual 
     onlyTraderchain
   {
     require(systemTraders[systemId] != address(0), "TradingSystem: systemId not exist");
-    require(amount > 0, "TradingSystem: amount is empty");
+    require(shares > 0, "TradingSystem: shares is empty");
     
-    _mint(toAddress, systemId, amount, "");
+    _mint(investor, systemId, shares, "");
   }
+    
+  function burnShares(uint256 systemId, address investor, uint256 shares) public virtual
+    onlyTraderchain
+  {
+    require(systemTraders[systemId] != address(0), "TradingSystem: systemId not exist");
+    require(shares > 0, "TradingSystem: shares is empty");
+    require(shares <= balanceOf(investor, systemId), "TradingSystem: shares is more than investor owning shares");
   
-  function approveFunds(uint256 systemId, address tokenAddress, uint256 amount) external 
-    onlySystemOwner(systemId)
-  {    
-    address vault = systemVaults[systemId];
-    ISystemVault(vault).approve(tokenAddress, amount);
+    _burn(investor, systemId, shares);
   }
   
   function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC1155) returns (bool) {
