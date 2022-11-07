@@ -130,108 +130,83 @@ contract Traderchain is
     
     if (assetAmount > 0) {
       IERC20(USDC).transferFrom(investor, address(this), assetAmount);
-      uint256 wethAmount = _buyAsset(systemId, assetAmount);
+      uint256 wethAmount = _swapAsset(systemId, USDC, WETH, assetAmount);
       systemAssets[systemId] += wethAmount;  
     }      
     
     numberOfShares = amount / sharePrice;
     tradingSystem.mintShares(systemId, investor, numberOfShares);
   }
-    
-  // Trader places a buy order for his system
-  function placeBuyOrder(uint256 systemId, uint256 amountIn) external 
+  
+  /***
+  * A trader places a buy/sell order for his own trading system
+  */
+  function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) public 
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
-  {      
-    uint256 systemFund = systemFunds[systemId];
-    require(amountIn <= systemFund, "Traderchain: not enough system funds");
+  { 
+    if (tokenIn == USDC) {
+      uint256 systemFund = systemFunds[systemId];
+      require(amountIn <= systemFund, "Traderchain: not enough system funds");  
+    }     
+    else if (tokenIn == WETH) {
+      uint256 systemAsset = systemAssets[systemId];
+      require(amountIn <= systemAsset, "Traderchain: not enough system assets");
+    }
+    else {
+      revert("Traderchain: only USDC and WETH are supported for now");
+    }
   
     address vault = tradingSystem.getSystemVault(systemId);
-    address tokenIn = USDC;
       
     IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
       
-    amountOut = _buyAsset(systemId, amountIn);
+    amountOut = _swapAsset(systemId, tokenIn, tokenOut, amountIn);
     
-    systemFunds[systemId] -= amountIn;
-    systemAssets[systemId] += amountOut;
+    if (tokenIn == USDC) {
+      systemFunds[systemId] -= amountIn;
+      systemAssets[systemId] += amountOut;
+    }     
+    else if (tokenIn == WETH) {
+      systemAssets[systemId] -= amountIn;
+      systemFunds[systemId] += amountOut;
+    }
   }
-  
-  // Trader places a sell order for his system
-  function placeSellOrder(uint256 systemId, uint256 amountIn) external 
-    onlySystemOwner(systemId) 
-    returns (uint256 amountOut)
-  {      
-    uint256 systemAsset = systemAssets[systemId];
-    require(amountIn <= systemAsset, "Traderchain: not enough system assets");
-  
-    address vault = tradingSystem.getSystemVault(systemId);
-    address tokenIn = WETH;
       
-    IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
-    IERC20(tokenIn).approve(address(swapRouter), amountIn);
-      
-    amountOut = _sellAsset(systemId, amountIn);
-        
-    systemAssets[systemId] -= amountIn;
-    systemFunds[systemId] += amountOut;
+  function placeBuyOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) { 
+    return placeOrder(systemId, USDC, WETH, amountIn);
+  }
+    
+  function placeSellOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) {          
+    return placeOrder(systemId, WETH, USDC, amountIn);
   }
 
   /***
    * Private functions
    */
-  function _buyAsset(uint256 systemId, uint256 amountIn) internal 
+  function _swapAsset(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) internal 
     returns (uint256 amountOut)
   {
     require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
     require(amountIn > 0, "TraderChain: amountIn is empty");    
-    
+
     address vault = tradingSystem.getSystemVault(systemId);
-    address tokenIn = USDC;
-    address tokenOut = WETH;
-          
+
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
-  
+
     ISwapRouter.ExactInputSingleParams memory params = 
-      ISwapRouter.ExactInputSingleParams({
-        tokenIn: tokenIn,
-        tokenOut: tokenOut,
-        fee: poolFee,
-        recipient: vault,
-        deadline: block.timestamp,
-        amountIn: amountIn,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0
-      });
-    
-    amountOut = swapRouter.exactInputSingle(params);
-  }
-  
-  function _sellAsset(uint256 systemId, uint256 amountIn) internal 
-    returns (uint256 amountOut)
-  {
-    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
-    require(amountIn > 0, "TraderChain: amountIn is empty");    
-    
-    address vault = tradingSystem.getSystemVault(systemId);
-    address tokenIn = WETH;
-    address tokenOut = USDC;
-          
-    IERC20(tokenIn).approve(address(swapRouter), amountIn);
-  
-    ISwapRouter.ExactInputSingleParams memory params = 
-      ISwapRouter.ExactInputSingleParams({
-        tokenIn: tokenIn,
-        tokenOut: tokenOut,
-        fee: poolFee,
-        recipient: vault,
-        deadline: block.timestamp,
-        amountIn: amountIn,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0
-      });
-    
+    ISwapRouter.ExactInputSingleParams({
+      tokenIn: tokenIn,
+      tokenOut: tokenOut,
+      fee: poolFee,
+      recipient: vault,
+      deadline: block.timestamp,
+      amountIn: amountIn,
+      amountOutMinimum: 0,
+      sqrtPriceLimitX96: 0
+    });
+
     amountOut = swapRouter.exactInputSingle(params);
   }
     
