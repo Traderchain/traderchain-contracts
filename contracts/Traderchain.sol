@@ -87,7 +87,7 @@ contract Traderchain is
   // Current system share price in USDC (10^6)
   function currentSystemSharePrice(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
-    if (totalShares == 0)  return uint256(10)**6; // Init price: 1 Share = 1 USDC
+    if (totalShares == 0)  return 10**3; // Init price: 1 Share = 0.001 USDC
         
     uint256 nav = currentSystemNAV(systemId);
     uint256 sharePrice = nav / totalShares;
@@ -112,6 +112,7 @@ contract Traderchain is
     address investor = _msgSender();
     address vault = tradingSystem.getSystemVault(systemId);
     uint256 nav = currentSystemNAV(systemId);
+    uint256 sharePrice = currentSystemSharePrice(systemId);
     
     uint256 fundAllocation = 10**6;
     uint256 assetAllocation = 0;
@@ -132,8 +133,8 @@ contract Traderchain is
       systemAssets[systemId] += wethAmount;  
     }      
     
-    numberOfShares = amount / currentSystemSharePrice(systemId);
-    tradingSystem.mintShares(systemId, investor, numberOfShares);    
+    numberOfShares = amount / sharePrice;
+    tradingSystem.mintShares(systemId, investor, numberOfShares);
   }
     
   // Trader places a buy order for his system
