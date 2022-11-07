@@ -22,7 +22,8 @@ contract Traderchain is
   ISwapRouter private swapRouter;  
   IUniswapV3Factory private swapFactory;
   ITradingSystem private tradingSystem;
-  
+    
+  // TODO: use erc20.balanceOf(vault) to track funds
   // Tracking system funds (USDC only for now)
   mapping(uint256 => uint256) public systemFunds;
   
@@ -138,36 +139,20 @@ contract Traderchain is
   }
     
   // Trader places a buy order for his system
-  function placeBuyOrder(uint256 systemId, uint256 buyAmount) external 
+  function placeBuyOrder(uint256 systemId, uint256 amountIn) external 
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
-  {
-    // require((buyAmount > 0 || sellAmount > 0) && (buyAmount == 0 || sellAmount == 0), "Traderchain: either buyAmount or sellAmount should be set");
-      
+  {      
     uint256 systemFund = systemFunds[systemId];
-    require(buyAmount <= systemFund, "Traderchain: not enough system funds");
+    require(amountIn <= systemFund, "Traderchain: not enough system funds");
   
     address vault = tradingSystem.getSystemVault(systemId);
     address tokenIn = USDC;
-    address tokenOut = WETH;
-    uint256 amountIn = buyAmount;
       
     IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
-  
-    ISwapRouter.ExactInputSingleParams memory params = 
-      ISwapRouter.ExactInputSingleParams({
-        tokenIn: tokenIn,
-        tokenOut: tokenOut,
-        fee: poolFee,
-        recipient: vault,
-        deadline: block.timestamp,
-        amountIn: amountIn,
-        amountOutMinimum: 0,
-        sqrtPriceLimitX96: 0
-      });
-    
-    amountOut = swapRouter.exactInputSingle(params);
+      
+    amountOut = _buyAsset(systemId, amountIn);
     
     systemFunds[systemId] -= amountIn;
     systemAssets[systemId] += amountOut;
