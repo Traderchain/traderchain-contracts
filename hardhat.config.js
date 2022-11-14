@@ -4,7 +4,7 @@ require('@openzeppelin/hardhat-upgrades');
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   networks: {
-  hardhat: {
+    hardhat: {
       forking: {
         url: "https://eth-mainnet.alchemyapi.io/v2/Bcipbi3wYgtmrR-gkp6Fdc888i3N3ixG",
         blockNumber: 15812970,
