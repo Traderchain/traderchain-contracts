@@ -23,6 +23,11 @@ contract TradingSystem is
   // Mapping system id to trader address
   mapping(uint256 => address) public systemTraders;
   
+  // Support enumeration for the list of systems owned by a trader
+  mapping(address => mapping(uint256 => uint256)) private traderSystems;
+  mapping(uint256 => uint256) private traderSystemsIndex;
+  mapping(address => uint256) private traderSystemsCount;
+  
   // Mapping system id to vault address
   mapping(uint256 => address) public systemVaults;
 
@@ -55,6 +60,14 @@ contract TradingSystem is
     return systemTraders[systemId];
   }
   
+  function getTraderSystemsCount(address trader) public view virtual returns (uint256) {
+    return traderSystemsCount[trader];
+  }
+  
+  function getTraderSystemByIndex(address trader, uint256 index) public view virtual returns (uint256) {
+    return traderSystems[trader][index];
+  }
+
   function getSystemVault(uint256 systemId) public view virtual returns (address) {
     return systemVaults[systemId];
   }
@@ -65,9 +78,10 @@ contract TradingSystem is
     uint256 systemId = _systemIdTracker.current();
 
     systemTraders[systemId] = trader;
-    _systemIdTracker.increment();
-    
+    _addSystemToTraderEnumeration(trader, systemId);
     _createSystemVault(systemId);
+    
+    _systemIdTracker.increment();
   }
   
   function mintShares(uint256 systemId, address investor, uint256 shares) public virtual 
@@ -88,7 +102,7 @@ contract TradingSystem is
   
     _burn(investor, systemId, shares);
   }
-  
+      
   function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC1155) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
@@ -99,6 +113,28 @@ contract TradingSystem is
   function _createSystemVault(uint256 systemId) private {
     address vault = address(new SystemVault(traderchain, address(this), systemId));
     systemVaults[systemId] = vault;
+  }
+  
+  function _addSystemToTraderEnumeration(address trader, uint256 systemId) private {
+    uint256 index = traderSystemsCount[trader];
+    traderSystems[trader][index] = systemId;
+    traderSystemsIndex[systemId] = index;
+    traderSystemsCount[trader] += 1;
+  }
+
+  function _removeSystemFromTraderEnumeration(address trader, uint256 systemId) private {
+    uint256 lastIndex = traderSystemsCount[trader] - 1;
+    uint256 index = traderSystemsIndex[systemId];
+
+    if (index != lastIndex) {
+        uint256 lastSystemId = traderSystems[trader][lastIndex];
+        traderSystems[trader][index] = lastSystemId;
+        traderSystemsIndex[lastSystemId] = index;
+    }
+
+    delete traderSystemsIndex[systemId];
+    delete traderSystems[trader][lastIndex];
+    traderSystemsCount[trader] -= 1;
   }
      
 }

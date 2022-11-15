@@ -16,6 +16,10 @@ interface ITradingSystem {
     
     function getSystemTrader(uint256 systemId) external view returns (address);
     
+    function getTraderSystemsCount(address trader) external view returns (uint256);
+    
+    function getTraderSystemByIndex(address trader, uint256 index) external view returns (uint256);
+
     function getSystemVault(uint256 systemId) external view returns (address);
     
     function createSystem(address trader) external;

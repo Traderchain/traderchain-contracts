@@ -88,6 +88,8 @@ describe("Traderchain", function () {
     
     await tc.connect(trader).createTradingSystem();
     expect(await system.getSystemTrader(systemId)).to.equal(trader.address);
+    expect(await system.getTraderSystemsCount(trader.address)).to.equal(1);
+    expect(await system.getTraderSystemByIndex(trader.address, 0)).to.equal(systemId);
     
     const vault = await system.getSystemVault(systemId);
     Util.log({vault});
