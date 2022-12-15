@@ -1,11 +1,11 @@
-require("@nomicfoundation/hardhat-toolbox");
-require('@openzeppelin/hardhat-upgrades');
+import "@nomicfoundation/hardhat-toolbox";
+import "@openzeppelin/hardhat-upgrades";
+import { HardhatUserConfig } from "hardhat/config";
 
 const secrets = require('./secrets_test.json');
 const { privateKey, alchemyId, etherscanApiKey } = secrets;
 
-/** @type import('hardhat/config').HardhatUserConfig */
-module.exports = {
+const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
@@ -44,3 +44,5 @@ module.exports = {
     apiKey: etherscanApiKey,
   },
 };
+
+export default config;
