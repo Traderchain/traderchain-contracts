@@ -10,9 +10,9 @@ import {
 } from '../lib/util';
 
 describe("Traderchain", function () {  
-  let signers: SignerWithAddress[] | { address: any; }[];
-  let trader: { address: any; };
-  let investor1: { address: any; };
+  let signers: SignerWithAddress[] = [];
+  let trader: SignerWithAddress | { address: any; };
+  let investor1: SignerWithAddress | { address: any; };
   
   let tc: any;
   let system: any;
