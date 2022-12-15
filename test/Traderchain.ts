@@ -1,24 +1,26 @@
-const { time, loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
-const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
-const { expect } = require("chai");
-const { 
+import { ethers } from "hardhat";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
+import { expect } from "chai";
+import { 
   ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
   BigNumber, formatUnits, formatEther,
   Util
-} = require('../lib/util');
-  
+} from '../lib/util';
+
 describe("Traderchain", function () {  
-  let signers;
-  let trader;
-  let investor1;
+  let signers: SignerWithAddress[] | { address: any; }[];
+  let trader: { address: any; };
+  let investor1: { address: any; };
   
-  let tc;
-  let system;
+  let tc: any;
+  let system: any;
   
   /***
   * Shared functions
   */          
-  async function placeOrder(systemId, tokenIn, tokenOut, amountIn) {    
+  async function placeOrder(systemId: number, tokenIn: string, tokenOut: string, amountIn: any) {    
     Util.log({systemId, tokenIn, tokenOut, amountIn});    
     const vault = await system.getSystemVault(systemId);    
         

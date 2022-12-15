@@ -4,7 +4,7 @@
   "description": "Core smart contracts of Traderchain",
   "scripts": {
     "compile": "npx hardhat compile",
-    "test": "npx hardhat test",
+    "test": "npx hardhat test --typecheck",
     "node": "npx hardhat node --network hardhat"
   },
   "author": "Hai M Nguyen (vnjp22@gmail.com)",
@@ -44,5 +44,5 @@
     "typechain": "^8.1.0",
     "typescript": "^4.9.4",
     "web3-utils": "1.6.1"
-  }
+  }  
 }
