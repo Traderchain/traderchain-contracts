@@ -7,6 +7,7 @@ const {
   Util
 } = require('../lib/util');
 
+// npx hardhat run --network localhost scripts/test_account.js
 async function main() {
   const signers = await ethers.getSigners();
   const trader = signers[0];

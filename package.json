@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Core smart contracts of Traderchain",
   "scripts": {    
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "node": "npx hardhat node --network hardhat"
   },
   "author": "Hai M Nguyen (vnjp22@gmail.com)",
   "license": "MIT",
