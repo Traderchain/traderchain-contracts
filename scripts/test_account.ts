@@ -1,11 +1,11 @@
-const hre = require("hardhat");
-const ethers = hre.ethers;
-
-const { 
+import hre from "hardhat";
+import { 
   ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
   BigNumber, formatUnits, formatEther,
   Util
-} = require('../lib/util');
+} from '../lib/util';
+
+const ethers = hre.ethers;
 
 // npx hardhat run --network localhost scripts/test_account.js
 async function main() {

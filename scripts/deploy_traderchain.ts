@@ -1,16 +1,20 @@
-const hre = require("hardhat");
-const ethers = hre.ethers;
-const { 
+import hre from "hardhat";
+import { 
   ADDRESS_ZERO, SWAP_ROUTER, SWAP_FACTORY,
   BigNumber, formatUnits, formatEther,
   Util
-} = require('../lib/util');
+} from '../lib/util';
+
+const ethers = hre.ethers;
 
 // npx hardhat run --network goerli scripts/deploy_traderchain.js
 // npx hardhat verify --network goerli <TRADERCHAIN> <SWAP_ROUTER> <SWAP_FACTORY>
 // npx hardhat verify --network goerli <TRADING_SYTEM> <TRADERCHAIN> "https://traderchain.org/system/"
 // npx hardhat verify --network goerli <SYSTEM_VAULT> <TRADERCHAIN> <TRADING_SYTEM> <systemId>
-async function main() {
+async function main() {  
+  const network = hre.network.name;
+  console.log({ network });  
+
   const Traderchain = await ethers.getContractFactory("Traderchain");
   const tc = await Traderchain.deploy(SWAP_ROUTER, SWAP_FACTORY);
   Util.log({'tc': tc.address});
