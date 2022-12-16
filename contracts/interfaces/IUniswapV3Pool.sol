@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.7.6 || 0.8.10;
-pragma abicoder v2;
+pragma solidity 0.8.17;
 
 interface IUniswapV3Pool {
   function slot0() external view

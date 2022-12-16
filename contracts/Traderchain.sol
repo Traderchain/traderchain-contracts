@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.10;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
@@ -18,13 +18,16 @@ contract Traderchain is
   address constant public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; 
   address constant public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   
+  // Goerli
+  // address constant public USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F; 
+  // address constant public WETH = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
+  
   uint24 public constant poolFee = 3000;
   
   ISwapRouter private swapRouter;  
   IUniswapV3Factory private swapFactory;
   ITradingSystem private tradingSystem;
     
-  /// TODO: use erc20.balanceOf(vault) to track funds
   /// Tracking system funds (USDC only for now)
   mapping(uint256 => uint256) public systemFunds;
   
