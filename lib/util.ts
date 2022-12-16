@@ -1,20 +1,26 @@
-const { expect } = require("chai");
+import { ethers, network } from "hardhat";
+import { expect } from "chai";
+import { BigNumberish } from "ethers";
 
-const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
+export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
-const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
-const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
+export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
+export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 
-const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
-const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
-const SWAP_POOL_WETH_USDC = '0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8';
+export const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
+export const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
+export const SWAP_POOL_WETH_USDC = '0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8';
 
-const BigNumber = ethers.BigNumber;
-const formatUnits = ethers.utils.formatUnits;
-const formatEther = ethers.utils.formatEther;
+export const BigNumber = ethers.BigNumber;
+export const formatUnits = ethers.utils.formatUnits;
+export const formatEther = ethers.utils.formatEther;
 
 class Util {
+  usdcToken: any;
+  wethToken: any;
+  tc: any;
+  system: any;
   
   constructor() {    
   }
@@ -56,19 +62,19 @@ class Util {
     console.log();
   }  
 
-  amountBN(amount, decimals = 18) {    
+  amountBN(amount: number, decimals = 18) {    
     return BigNumber.from(amount).mul(BigNumber.from(10).pow(decimals));
   }
   
-  amountStr(amount, decimals = 18) {    
+  amountStr(amount: BigNumberish, decimals = 18) {    
     return formatUnits(amount, decimals);
   }
   
-  amountFloat(amount, decimals = 18) {   
+  amountFloat(amount: BigNumberish, decimals = 18) {   
     return parseFloat(formatUnits(amount, decimals));
   }
     
-  log(values) {
+  log(values: any) {
     for (let key in values) {
       let value = values[key];      
       if (BigNumber.isBigNumber(value)) {
@@ -80,7 +86,7 @@ class Util {
     }    
   }
   
-  async takeWhaleUSDC(toAddress, amount) {
+  async takeWhaleUSDC(toAddress: string, amount: BigNumberish) {
     console.log('\tUtil.takeWhaleUSDC()');
     this.log({toAddress, amount});
     
@@ -95,7 +101,7 @@ class Util {
     expect(usdcBalance).to.equal(newUsdcBalance);
   }
   
-  async takeWhaleETH(to, value) {
+  async takeWhaleETH(to: string, value: BigNumberish) {
     console.log('\tUtil.takeWhaleETH()');
     this.log({to, value});
     
@@ -115,9 +121,4 @@ class Util {
 }
 
 const util = new Util();
-
-module.exports = { 
-  ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER, SWAP_FACTORY,
-  BigNumber, formatUnits, formatEther,
-  Util: util
-};
+export default util;

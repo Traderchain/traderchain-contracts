@@ -1,13 +1,12 @@
 import hre from "hardhat";
-import { 
+import Util, { 
   ADDRESS_ZERO, SWAP_ROUTER, SWAP_FACTORY,
-  BigNumber, formatUnits, formatEther,
-  Util
+  BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
 const ethers = hre.ethers;
 
-// npx hardhat run --network goerli scripts/deploy_traderchain.js
+// npx hardhat run --network goerli scripts/deploy_traderchain.ts
 // npx hardhat verify --network goerli <TRADERCHAIN> <SWAP_ROUTER> <SWAP_FACTORY>
 // npx hardhat verify --network goerli <TRADING_SYTEM> <TRADERCHAIN> "https://traderchain.org/system/"
 // npx hardhat verify --network goerli <SYSTEM_VAULT> <TRADERCHAIN> <TRADING_SYTEM> <systemId>

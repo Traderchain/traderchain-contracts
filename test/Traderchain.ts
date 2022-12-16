@@ -3,16 +3,15 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
-import { 
+import Util, { 
   ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
-  BigNumber, formatUnits, formatEther,
-  Util
+  BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
 describe("Traderchain", function () {  
   let signers: SignerWithAddress[] = [];
-  let trader: SignerWithAddress | { address: any; };
-  let investor1: SignerWithAddress | { address: any; };
+  let trader: SignerWithAddress;
+  let investor1: SignerWithAddress;
   
   let tc: any;
   let system: any;

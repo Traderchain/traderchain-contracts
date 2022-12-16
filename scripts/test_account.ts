@@ -1,13 +1,12 @@
 import hre from "hardhat";
-import { 
+import Util, { 
   ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
-  BigNumber, formatUnits, formatEther,
-  Util
+  BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
 const ethers = hre.ethers;
 
-// npx hardhat run --network localhost scripts/test_account.js
+// npx hardhat run --network localhost scripts/test_account.ts
 async function main() {
   const signers = await ethers.getSigners();
   const trader = signers[0];

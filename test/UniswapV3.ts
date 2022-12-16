@@ -4,10 +4,9 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
-import { 
+import Util, { 
   ADDRESS_ZERO, SWAP_ROUTER,
-  BigNumber, formatUnits, formatEther,
-  Util
+  BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
 const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
@@ -26,7 +25,7 @@ describe("UniswapV3", function () {
   let liquidityContract: Contract;
   let swapContract: Contract;
   
-  async function takeWhaleUSDC(signer: SignerWithAddress | { address: any; }, amount: any) {
+  async function takeWhaleUSDC(signer: SignerWithAddress, amount: any) {
     const whaleSigner = await ethers.getImpersonatedSigner(USDC_WHALE);
     await usdcToken.connect(whaleSigner).transfer(signer.address, amount);
     
