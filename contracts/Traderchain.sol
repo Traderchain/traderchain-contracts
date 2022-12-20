@@ -114,13 +114,13 @@ contract Traderchain is
     tradingSystem.createSystem(trader);        
   }
   
-  /// Investors buy system shares with USDC
-  /// TODO: Support funds from other ERC20 tokens
-  function buyShares(uint256 systemId, uint256 amount) external 
+  /// Investors buy system shares
+  function buyShares(uint256 systemId, address tokenIn, uint256 amountIn) external 
     returns (uint256 numberOfShares)
   {
     require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
-    require(amount > 0, "TraderChain: amount is empty");
+    require(tokenIn != address(0), "TraderChain: tokenIn is zero");
+    require(amountIn > 0, "TraderChain: amountIn is empty");
         
     address investor = _msgSender();
     address vault = tradingSystem.getSystemVault(systemId);
@@ -134,24 +134,24 @@ contract Traderchain is
       assetAllocation = (10**6) - fundAllocation;
     }
     
-    uint256 assetAmount = assetAllocation * amount / (10**6);
-    uint256 fundAmount = amount - assetAmount;
+    uint256 assetAmount = assetAllocation * amountIn / (10**6);
+    uint256 fundAmount = amountIn - assetAmount;
     
-    IERC20(USDC).transferFrom(investor, vault, fundAmount);
+    IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
     systemFunds[systemId] += fundAmount;
     
     if (assetAmount > 0) {
-      IERC20(USDC).transferFrom(investor, address(this), assetAmount);
-      uint256 wethAmount = _swapAsset(systemId, USDC, WETH, assetAmount);
+      IERC20(tokenIn).transferFrom(investor, address(this), assetAmount);
+      uint256 wethAmount = _swapAsset(systemId, tokenIn, WETH, assetAmount);
       systemAssets[systemId] += wethAmount;  
     }      
     
-    numberOfShares = amount / sharePrice;
+    numberOfShares = amountIn / sharePrice;
     tradingSystem.mintShares(systemId, investor, numberOfShares);
   }
   
   /// Investors sell system shares and receive funds
-  function sellShares(uint256 systemId, uint256 numberOfShares) external 
+  function sellShares(uint256 systemId, uint256 numberOfShares, address tokenOut) external 
     returns (uint256 amountOut)
   {
     address investor = _msgSender();    
@@ -166,7 +166,7 @@ contract Traderchain is
     if (assetAmount > 0) {
       ISystemVault(vault).approve(WETH, assetAmount);
       IERC20(WETH).transferFrom(vault, address(this), assetAmount);
-      uint256 usdcAmount = _swapAsset(systemId, WETH, USDC, assetAmount);
+      uint256 usdcAmount = _swapAsset(systemId, WETH, tokenOut, assetAmount);
       
       systemFunds[systemId] += usdcAmount;
       systemAssets[systemId] -= assetAmount;
@@ -175,8 +175,8 @@ contract Traderchain is
     uint256 nav = currentSystemNAV(systemId);
     amountOut = nav * numberOfShares / totalShares;
     
-    ISystemVault(vault).approve(USDC, amountOut);
-    IERC20(USDC).transferFrom(vault, investor, amountOut);
+    ISystemVault(vault).approve(tokenOut, amountOut);
+    IERC20(tokenOut).transferFrom(vault, investor, amountOut);
     systemFunds[systemId] -= amountOut;
                   
     tradingSystem.burnShares(systemId, investor, numberOfShares);

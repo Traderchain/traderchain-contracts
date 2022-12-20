@@ -25,12 +25,11 @@ interface ITraderchain {
   
   function createTradingSystem() external;
   
-  /// Investors buy system shares with USDC
-  /// TODO: Support funds from other ERC20 tokens
-  function buyShares(uint256 systemId, uint256 amount) external  returns (uint256 numberOfShares);
+  /// Investors buy system shares
+  function buyShares(uint256 systemId, address tokenId, uint256 amountIn) external  returns (uint256 numberOfShares);
   
   /// Investors sell system shares and receive funds
-  function sellShares(uint256 systemId, uint256 numberOfShares) external returns (uint256 amountOut);  
+  function sellShares(uint256 systemId, uint256 numberOfShares, address tokenOut) external returns (uint256 amountOut);  
     
   /// A trader places a buy/sell order for his own trading system  
   function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256 amountOut);

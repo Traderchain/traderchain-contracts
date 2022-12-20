@@ -112,6 +112,7 @@ describe("Traderchain", function () {
   it("An investor can buy system shares to initiate share issuance", async function () {
     const systemId = 1;
     const vault = await system.getSystemVault(systemId);        
+    const tokenIn = USDC;
     const usdcAmount = Util.amountBN(100, 6);
     const sharePrice = await tc.currentSystemSharePrice(systemId);
     const expectedShares = usdcAmount.div(sharePrice);
@@ -119,8 +120,8 @@ describe("Traderchain", function () {
     
     await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
     
-    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, usdcAmount);
-    await tc.connect(investor1).buyShares(systemId, usdcAmount);
+    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
+    await tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
     Util.log({numberOfShares});
     expect(numberOfShares).to.equal(expectedShares);
     
@@ -143,6 +144,7 @@ describe("Traderchain", function () {
 
   it("An investor can buy more system shares", async function () {    
     const systemId = 1;
+    const tokenIn = USDC;
     const usdcAmount = Util.amountBN(100, 6);    
     const vault = await system.getSystemVault(systemId);
     Util.log({systemId, usdcAmount});
@@ -192,8 +194,8 @@ describe("Traderchain", function () {
     // Buy more shares
     await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
   
-    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, usdcAmount);
-    await tc.connect(investor1).buyShares(systemId, usdcAmount);
+    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
+    await tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
     Util.log({numberOfShares});
     expect(numberOfShares).to.equal(expectedShares);
   
@@ -232,6 +234,7 @@ describe("Traderchain", function () {
     let investorShares = await tc.getInvestorShares(systemId, investor1.address);
     let investorFund = await Util.usdcToken.balanceOf(investor1.address);
     const numberOfShares = investorShares.div(BigNumber.from(2));
+    const tokenOut = USDC;
     const vault = await system.getSystemVault(systemId);    
     Util.log({systemId, investorShares, investorFund, numberOfShares});
 
@@ -246,8 +249,8 @@ describe("Traderchain", function () {
     Util.log({systemFund, systemAsset});
     
     // Sell shares and receive funds
-    const amountOut = await tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares);
-    await tc.connect(investor1).sellShares(systemId, numberOfShares);
+    const amountOut = await tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares, tokenOut);
+    await tc.connect(investor1).sellShares(systemId, numberOfShares, tokenOut);
     Util.log({amountOut});
                 
     nav = await tc.currentSystemNAV(systemId);
