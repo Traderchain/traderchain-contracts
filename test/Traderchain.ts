@@ -204,7 +204,7 @@ describe("Traderchain", function () {
     vaultWethBalance = await Util.wethToken.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});        
     expect(vaultUsdcBalance).to.equal(expectedFundAmount);
-    expect(Util.amountFloat(vaultWethBalance,11).toFixed(0)).to.equal(Util.amountFloat(expectedAssetAmount,11).toFixed(0));
+    expect(Util.amountFloat(vaultWethBalance,12).toFixed(0)).to.equal(Util.amountFloat(expectedAssetAmount,12).toFixed(0));
   
     systemFund = await tc.getSystemAssetAmount(systemId, USDC);
     systemAsset = await tc.getSystemAssetAmount(systemId, WETH);

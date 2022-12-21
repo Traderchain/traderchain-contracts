@@ -140,32 +140,37 @@ contract Traderchain is
     address vault = tradingSystem.getSystemVault(systemId);
     uint256 nav = currentSystemNAV(systemId);
     uint256 sharePrice = currentSystemSharePrice(systemId);
-    
-    uint256 fundAllocation = 10**6;
-    uint256 assetAllocation = 0;
-    if (nav > 0) {
-      fundAllocation = (10**6) * systemAssetAmounts[systemId][tokenIn] / nav;
-      assetAllocation = (10**6) - fundAllocation;
+    uint256 assetCount = systemAssets.count(systemId);
+
+    if (nav == 0 || assetCount == 0) {
+      IERC20(tokenIn).transferFrom(investor, vault, amountIn);
+      _increaseSystemAssetAmount(systemId, tokenIn, amountIn);
+      systemAssets.addAddress(systemId, tokenIn);
     }
-    
-    uint256 assetAmount = assetAllocation * amountIn / (10**6);
-    uint256 fundAmount = amountIn - assetAmount;
-    
-    IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
-    systemAssets.addAddress(systemId, tokenIn);
-    systemAssetAmounts[systemId][tokenIn] += fundAmount;
-    
-    if (assetAmount > 0) {
-      IERC20(tokenIn).transferFrom(investor, address(this), assetAmount);
-      uint256 wethAmount = _swapAsset(systemId, tokenIn, WETH, assetAmount);
-      systemAssets.addAddress(systemId, WETH);
-      systemAssetAmounts[systemId][WETH] += wethAmount;  
-    }      
-    
+    else {
+      for (uint256 i = 0; i < assetCount; i++) {
+        address assetAddress = systemAssets.getAddress(systemId, i);      
+        uint256 assetValue = getSystemAssetValue(systemId, assetAddress);
+        uint256 assetAllocation = (10**6) * assetValue / nav;
+        uint256 fundAmount = assetAllocation * amountIn / (10**6);        
+        if (fundAmount == 0)  continue;
+
+        if (assetAddress == tokenIn) {
+          IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
+          _increaseSystemAssetAmount(systemId, tokenIn, fundAmount);
+        }
+        else {
+          IERC20(tokenIn).transferFrom(investor, address(this), fundAmount);
+          uint256 assetAmount = _swapAsset(systemId, tokenIn, assetAddress, fundAmount);
+          _increaseSystemAssetAmount(systemId, assetAddress, assetAmount);
+        }
+      }
+    }
+
     numberOfShares = amountIn / sharePrice;
-    tradingSystem.mintShares(systemId, investor, numberOfShares);
+    tradingSystem.mintShares(systemId, investor, numberOfShares);    
   }
-  
+
   /// Investors sell system shares and receive funds
   function sellShares(uint256 systemId, uint256 numberOfShares, address tokenOut) external 
     returns (uint256 amountOut)
@@ -271,5 +276,12 @@ contract Traderchain is
 
     amountOut = swapRouter.exactInputSingle(params);
   }
-    
+
+  function _increaseSystemAssetAmount(uint256 systemId, address assetAddress, uint256 assetAmount) internal {
+    systemAssetAmounts[systemId][assetAddress] += assetAmount;
+  }
+
+  function _decreaseSystemAssetAmount(uint256 systemId, address assetAddress, uint256 assetAmount) internal {
+    systemAssetAmounts[systemId][assetAddress] -= assetAmount;
+  }
 }
