@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import './interfaces/IERC20.sol';
 import './interfaces/ISwapRouter.sol';
@@ -18,16 +19,16 @@ contract Traderchain is
   address constant public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; 
   address constant public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   
-  // Goerli
-  // address constant public USDC = 0x07865c6E87B9F70255377e024ace6630C1Eaa37F; 
-  // address constant public WETH = 0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6;
-  
   uint24 public constant poolFee = 3000;
   
   ISwapRouter private swapRouter;  
   IUniswapV3Factory private swapFactory;
   ITradingSystem private tradingSystem;
-    
+
+  // Supported assets
+  using EnumerableSet for EnumerableSet.AddressSet;
+  EnumerableSet.AddressSet private supportedAssets;
+
   /// Tracking system funds (USDC only for now)
   mapping(uint256 => uint256) public systemFunds;
   
@@ -56,6 +57,14 @@ contract Traderchain is
   
   function setTradingSystem(address _tradingSystem) external onlyAdmin {
     tradingSystem = ITradingSystem(_tradingSystem);
+  }
+
+  function addSupportedAsset(address tokenAddress) external onlyAdmin {
+    supportedAssets.add(tokenAddress);
+  }
+
+  function removeSupportedAsset(address tokenAddress) external onlyAdmin {
+    supportedAssets.remove(tokenAddress);
   }
 
   function getSystemFund(uint256 systemId) public view virtual returns (uint256) {
@@ -118,9 +127,10 @@ contract Traderchain is
   function buyShares(uint256 systemId, address tokenIn, uint256 amountIn) external 
     returns (uint256 numberOfShares)
   {
-    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
-    require(tokenIn != address(0), "TraderChain: tokenIn is zero");
-    require(amountIn > 0, "TraderChain: amountIn is empty");
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
+    require(tokenIn != address(0), "Traderchain: tokenIn is zero");
+    require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
+    require(amountIn > 0, "Traderchain: amountIn is empty");
         
     address investor = _msgSender();
     address vault = tradingSystem.getSystemVault(systemId);
@@ -155,9 +165,10 @@ contract Traderchain is
     returns (uint256 amountOut)
   {
     address investor = _msgSender();    
-    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
-    require(numberOfShares > 0, "TraderChain: numberOfShares is empty");
-    require(numberOfShares <= getInvestorShares(systemId, investor), "TraderChain: numberOfShares is more than investor owning shares");
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
+    require(numberOfShares > 0, "Traderchain: numberOfShares is empty");
+    require(numberOfShares <= getInvestorShares(systemId, investor), "Traderchain: numberOfShares is more than investor owning shares");
+    require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
         
     address vault = tradingSystem.getSystemVault(systemId);    
     uint256 totalShares = totalSystemShares(systemId);
@@ -187,17 +198,22 @@ contract Traderchain is
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
   { 
-    if (tokenIn == USDC) {
-      uint256 systemFund = systemFunds[systemId];
-      require(amountIn <= systemFund, "Traderchain: not enough system funds");  
-    }     
-    else if (tokenIn == WETH) {
-      uint256 systemAsset = systemAssets[systemId];
-      require(amountIn <= systemAsset, "Traderchain: not enough system assets");
-    }
-    else {
-      revert("Traderchain: only USDC and WETH are supported for now");
-    }
+    require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
+    require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
+    require(tokenIn != tokenOut, "Traderchain: tokenIn and tokenOut must be different");
+
+    // TODO: check for sufficient token reserve
+    // if (tokenIn == USDC) {
+    //   uint256 systemFund = systemFunds[systemId];
+    //   require(amountIn <= systemFund, "Traderchain: not enough system funds");  
+    // }     
+    // else if (tokenIn == WETH) {
+    //   uint256 systemAsset = systemAssets[systemId];
+    //   require(amountIn <= systemAsset, "Traderchain: not enough system assets");
+    // }
+    // else {
+    //   revert("Traderchain: only USDC and WETH are supported for now");
+    // }
   
     address vault = tradingSystem.getSystemVault(systemId);
       
@@ -207,6 +223,7 @@ contract Traderchain is
       
     amountOut = _swapAsset(systemId, tokenIn, tokenOut, amountIn);
     
+    // TODO: dynamic asset tracking
     if (tokenIn == USDC) {
       systemFunds[systemId] -= amountIn;
       systemAssets[systemId] += amountOut;
@@ -231,8 +248,8 @@ contract Traderchain is
   function _swapAsset(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) internal 
     returns (uint256 amountOut)
   {
-    require(tradingSystem.getSystemTrader(systemId) != address(0), "TraderChain: systemId not exist");
-    require(amountIn > 0, "TraderChain: amountIn is empty");    
+    require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
+    require(amountIn > 0, "Traderchain: amountIn is empty");    
 
     address vault = tradingSystem.getSystemVault(systemId);
 

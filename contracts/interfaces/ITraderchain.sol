@@ -4,6 +4,10 @@ pragma solidity 0.8.17;
 interface ITraderchain {
   function setTradingSystem(address _tradingSystem) external;
 
+  function addSupportedAsset(address tokenAddress) external;
+
+  function removeSupportedAsset(address tokenAddress) external;
+
   function getSystemFund(uint256 systemId) external view returns (uint256);
   
   function getSystemAsset(uint256 systemId) external view returns (uint256);

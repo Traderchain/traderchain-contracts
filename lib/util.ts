@@ -7,6 +7,7 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
+export const INIT_SUPPORT_ASSETS = [USDC, WETH];
 
 export const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
 export const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
@@ -54,6 +55,9 @@ class Util {
     this.log({'system': this.system.address});
     
     await this.tc.setTradingSystem(this.system.address);
+    for (let asset of INIT_SUPPORT_ASSETS) {
+      await this.tc.addSupportedAsset(asset);
+    }
         
     const usdcAmount = this.amountBN(1000, 6);
     await this.takeWhaleUSDC(signers[0].address, usdcAmount);

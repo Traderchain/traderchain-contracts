@@ -1,6 +1,6 @@
 import hre from "hardhat";
 import Util, { 
-  ADDRESS_ZERO, SWAP_ROUTER, SWAP_FACTORY,
+  ADDRESS_ZERO, INIT_SUPPORT_ASSETS, SWAP_ROUTER, SWAP_FACTORY,
   BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
@@ -23,6 +23,9 @@ async function main() {
   Util.log({'system': system.address});
   
   await tc.setTradingSystem(system.address);
+  for (let asset of INIT_SUPPORT_ASSETS) {
+    await tc.addSupportedAsset(asset);
+  }
 }
 
 main().catch((error) => {
