@@ -142,8 +142,10 @@ contract Traderchain is
     uint256 sharePrice = currentSystemSharePrice(systemId);
     uint256 assetCount = systemAssets.count(systemId);
 
+    IERC20(tokenIn).transferFrom(investor, address(this), amountIn);
+
     if (nav == 0 || assetCount == 0) {
-      IERC20(tokenIn).transferFrom(investor, vault, amountIn);
+      IERC20(tokenIn).transfer(vault, amountIn);
       _increaseSystemAssetAmount(systemId, tokenIn, amountIn);
       systemAssets.addAddress(systemId, tokenIn);
     }
@@ -156,11 +158,10 @@ contract Traderchain is
         if (fundAmount == 0)  continue;
 
         if (assetAddress == tokenIn) {
-          IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
+          IERC20(tokenIn).transfer(vault, fundAmount);
           _increaseSystemAssetAmount(systemId, tokenIn, fundAmount);
         }
-        else {
-          IERC20(tokenIn).transferFrom(investor, address(this), fundAmount);
+        else {          
           uint256 assetAmount = _swapAsset(systemId, tokenIn, assetAddress, fundAmount);
           _increaseSystemAssetAmount(systemId, assetAddress, assetAmount);
         }
@@ -183,28 +184,37 @@ contract Traderchain is
         
     address vault = tradingSystem.getSystemVault(systemId);    
     uint256 totalShares = totalSystemShares(systemId);
-    
-    uint256 assetAmount = systemAssetAmounts[systemId][WETH] * numberOfShares / totalShares;    
-    if (assetAmount > 0) {
-      ISystemVault(vault).approve(WETH, assetAmount);
-      IERC20(WETH).transferFrom(vault, address(this), assetAmount);
-      uint256 usdcAmount = _swapAsset(systemId, WETH, tokenOut, assetAmount);
-      
-      systemAssets.addAddress(systemId, tokenOut);
-      systemAssetAmounts[systemId][tokenOut] += usdcAmount;
-      systemAssetAmounts[systemId][WETH] -= assetAmount;
-    } 
-    
-    uint256 nav = currentSystemNAV(systemId);
-    amountOut = nav * numberOfShares / totalShares;
+    uint256 assetCount = systemAssets.count(systemId);
+
+    amountOut = 0;
+    for (uint256 i = 0; i < assetCount; i++) {
+      address assetAddress = systemAssets.getAddress(systemId, i);
+      uint256 assetAmount = systemAssetAmounts[systemId][assetAddress] * numberOfShares / totalShares;
+      if (assetAmount == 0)  continue;
+
+      if (assetAddress == tokenOut) {
+        amountOut += assetAmount;
+        continue;
+      }
+        
+      ISystemVault(vault).approve(assetAddress, assetAmount);
+      IERC20(assetAddress).transferFrom(vault, address(this), assetAmount);
+      uint256 fundAmount = _swapAsset(systemId, assetAddress, tokenOut, assetAmount);
+      amountOut += fundAmount;
+
+      _decreaseSystemAssetAmount(systemId, assetAddress, assetAmount);
+      _increaseSystemAssetAmount(systemId, tokenOut, fundAmount);      
+    }
+    require(amountOut > 0, "Traderchain: amountOut is empty");
     
     ISystemVault(vault).approve(tokenOut, amountOut);
-    IERC20(tokenOut).transferFrom(vault, investor, amountOut);
-    systemAssetAmounts[systemId][tokenOut] -= amountOut;
+    IERC20(tokenOut).transferFrom(vault, investor, amountOut);    
+    _decreaseSystemAssetAmount(systemId, tokenOut, amountOut);
+    systemAssets.addAddress(systemId, tokenOut);
                   
     tradingSystem.burnShares(systemId, investor, numberOfShares);
   }
-    
+  
   /// A trader places a buy/sell order for his own trading system  
   function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) public 
     onlySystemOwner(systemId) 
