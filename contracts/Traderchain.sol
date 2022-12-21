@@ -19,7 +19,7 @@ contract Traderchain is
   address constant public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; 
   address constant public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
   
-  uint24 public constant poolFee = 3000;
+  uint24 public constant poolFee = 3000; // TODO: set by a pool
   
   ISwapRouter private swapRouter;  
   IUniswapV3Factory private swapFactory;
@@ -29,11 +29,8 @@ contract Traderchain is
   using EnumerableSet for EnumerableSet.AddressSet;
   EnumerableSet.AddressSet private supportedAssets;
 
-  /// Tracking system funds (USDC only for now)
-  mapping(uint256 => uint256) public systemFunds;
-  
-  /// Tracking system assets (WETH only for now)
-  mapping(uint256 => uint256) public systemAssets;
+  // Tracking system asset amounts
+  mapping(uint256 => mapping(address => uint256)) systemAssetAmounts; // systemId => assetAddress => assetAmount
   
   /***
    * Public functions
@@ -67,12 +64,8 @@ contract Traderchain is
     supportedAssets.remove(tokenAddress);
   }
 
-  function getSystemFund(uint256 systemId) public view virtual returns (uint256) {
-    return systemFunds[systemId];
-  }
-  
-  function getSystemAsset(uint256 systemId) public view virtual returns (uint256) {
-    return systemAssets[systemId];
+  function getSystemAssetAmount(uint256 systemId, address tokenAddress) public view virtual returns (uint256) {
+    return systemAssetAmounts[systemId][tokenAddress];
   }
     
   function getPairPrice(address tokenIn, address tokenOut) public view returns (uint256) {
@@ -93,8 +86,8 @@ contract Traderchain is
     if (totalShares == 0)  return 0;
     
     uint256 wethPrice = getAssetPrice();
-    uint256 fundValue = systemFunds[systemId];
-    uint256 assetValue = systemAssets[systemId] * wethPrice / (uint256(10)**18);
+    uint256 fundValue = systemAssetAmounts[systemId][USDC];
+    uint256 assetValue = systemAssetAmounts[systemId][WETH] * wethPrice / (uint256(10)**18);
     return fundValue + assetValue;
   }
   
@@ -140,7 +133,7 @@ contract Traderchain is
     uint256 fundAllocation = 10**6;
     uint256 assetAllocation = 0;
     if (nav > 0) {
-      fundAllocation = (10**6) * systemFunds[systemId] / nav;
+      fundAllocation = (10**6) * systemAssetAmounts[systemId][tokenIn] / nav;
       assetAllocation = (10**6) - fundAllocation;
     }
     
@@ -148,12 +141,12 @@ contract Traderchain is
     uint256 fundAmount = amountIn - assetAmount;
     
     IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
-    systemFunds[systemId] += fundAmount;
+    systemAssetAmounts[systemId][tokenIn] += fundAmount;
     
     if (assetAmount > 0) {
       IERC20(tokenIn).transferFrom(investor, address(this), assetAmount);
       uint256 wethAmount = _swapAsset(systemId, tokenIn, WETH, assetAmount);
-      systemAssets[systemId] += wethAmount;  
+      systemAssetAmounts[systemId][WETH] += wethAmount;  
     }      
     
     numberOfShares = amountIn / sharePrice;
@@ -173,14 +166,14 @@ contract Traderchain is
     address vault = tradingSystem.getSystemVault(systemId);    
     uint256 totalShares = totalSystemShares(systemId);
     
-    uint256 assetAmount = systemAssets[systemId] * numberOfShares / totalShares;    
+    uint256 assetAmount = systemAssetAmounts[systemId][WETH] * numberOfShares / totalShares;    
     if (assetAmount > 0) {
       ISystemVault(vault).approve(WETH, assetAmount);
       IERC20(WETH).transferFrom(vault, address(this), assetAmount);
       uint256 usdcAmount = _swapAsset(systemId, WETH, tokenOut, assetAmount);
       
-      systemFunds[systemId] += usdcAmount;
-      systemAssets[systemId] -= assetAmount;
+      systemAssetAmounts[systemId][tokenOut] += usdcAmount;
+      systemAssetAmounts[systemId][WETH] -= assetAmount;
     } 
     
     uint256 nav = currentSystemNAV(systemId);
@@ -188,7 +181,7 @@ contract Traderchain is
     
     ISystemVault(vault).approve(tokenOut, amountOut);
     IERC20(tokenOut).transferFrom(vault, investor, amountOut);
-    systemFunds[systemId] -= amountOut;
+    systemAssetAmounts[systemId][tokenOut] -= amountOut;
                   
     tradingSystem.burnShares(systemId, investor, numberOfShares);
   }
@@ -204,11 +197,11 @@ contract Traderchain is
 
     // TODO: check for sufficient token reserve
     // if (tokenIn == USDC) {
-    //   uint256 systemFund = systemFunds[systemId];
+    //   uint256 systemFund = systemAssetAmounts[systemId][USDC];
     //   require(amountIn <= systemFund, "Traderchain: not enough system funds");  
     // }     
     // else if (tokenIn == WETH) {
-    //   uint256 systemAsset = systemAssets[systemId];
+    //   uint256 systemAsset = systemAssetAmounts[systemId][WETH];
     //   require(amountIn <= systemAsset, "Traderchain: not enough system assets");
     // }
     // else {
@@ -223,15 +216,8 @@ contract Traderchain is
       
     amountOut = _swapAsset(systemId, tokenIn, tokenOut, amountIn);
     
-    // TODO: dynamic asset tracking
-    if (tokenIn == USDC) {
-      systemFunds[systemId] -= amountIn;
-      systemAssets[systemId] += amountOut;
-    }     
-    else if (tokenIn == WETH) {
-      systemAssets[systemId] -= amountIn;
-      systemFunds[systemId] += amountOut;
-    }
+    systemAssetAmounts[systemId][tokenIn] -= amountIn;
+    systemAssetAmounts[systemId][tokenOut] += amountOut;
   }
       
   function placeBuyOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) { 

@@ -28,8 +28,8 @@ describe("Traderchain", function () {
     let assetPrice = await tc.getAssetPrice();
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice});
     
-    let systemFund = await tc.getSystemFund(systemId); 
-    let systemAsset = await tc.getSystemAsset(systemId);    
+    let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
+    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
     
     const amountOut = await tc.connect(trader).callStatic.placeOrder(systemId, tokenIn, tokenOut, amountIn);
@@ -46,8 +46,8 @@ describe("Traderchain", function () {
     expect(vaultUsdcBalance).to.equal(expectedSystemFund);
     expect(vaultWethBalance).to.equal(expectedSystemAsset);
     
-    systemFund = await tc.getSystemFund(systemId); 
-    systemAsset = await tc.getSystemAsset(systemId); 
+    systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
+    systemAsset = await tc.getSystemAssetAmount(systemId, WETH); 
     Util.log({systemFund, systemAsset});
     expect(systemFund).to.equal(vaultUsdcBalance);
     expect(systemAsset).to.equal(vaultWethBalance);
@@ -129,7 +129,7 @@ describe("Traderchain", function () {
     Util.log({vaultBalance});
     expect(vaultBalance).to.equal(usdcAmount);
     
-    const systemFund = await tc.getSystemFund(systemId);
+    const systemFund = await tc.getSystemAssetAmount(systemId, USDC);
     Util.log({systemFund});
     expect(systemFund).to.equal(usdcAmount);
     
@@ -164,8 +164,8 @@ describe("Traderchain", function () {
     let vaultWethBalance = await Util.wethToken.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});    
     
-    let systemFund = await tc.getSystemFund(systemId);
-    let systemAsset = await tc.getSystemAsset(systemId);
+    let systemFund = await tc.getSystemAssetAmount(systemId, USDC);
+    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);
     Util.log({systemFund, systemAsset});
     
     // Caculate asset allocation
@@ -206,8 +206,8 @@ describe("Traderchain", function () {
     expect(vaultUsdcBalance).to.equal(expectedFundAmount);
     expect(Util.amountFloat(vaultWethBalance,11).toFixed(0)).to.equal(Util.amountFloat(expectedAssetAmount,11).toFixed(0));
   
-    systemFund = await tc.getSystemFund(systemId);
-    systemAsset = await tc.getSystemAsset(systemId);
+    systemFund = await tc.getSystemAssetAmount(systemId, USDC);
+    systemAsset = await tc.getSystemAssetAmount(systemId, WETH);
     Util.log({systemFund, systemAsset});    
     expect(systemFund).to.equal(vaultUsdcBalance);
     expect(systemAsset).to.equal(vaultWethBalance);
@@ -244,8 +244,8 @@ describe("Traderchain", function () {
     let totalShares = await tc.totalSystemShares(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
 
-    let systemFund = await tc.getSystemFund(systemId); 
-    let systemAsset = await tc.getSystemAsset(systemId);    
+    let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
+    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
     
     // Sell shares and receive funds
@@ -259,8 +259,8 @@ describe("Traderchain", function () {
     totalShares = await tc.totalSystemShares(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
 
-    systemFund = await tc.getSystemFund(systemId); 
-    systemAsset = await tc.getSystemAsset(systemId);    
+    systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
+    systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
         
     investorShares = await tc.getInvestorShares(systemId, investor1.address);

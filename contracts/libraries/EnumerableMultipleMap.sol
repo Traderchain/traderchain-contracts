@@ -22,7 +22,7 @@ library EnumerableMultipleMap {
   }
 
   function addId(AddressToUintsMap storage map, address addr, uint256 id) internal {    
-    require(!exists(map, addr, id), "Enumeration: id already added");
+    require(!exists(map, addr, id), "EnumerableMultipleMap: id already added");
 
     uint256 index = map.counts[addr];
     map.data[addr][index] = id;
@@ -31,7 +31,7 @@ library EnumerableMultipleMap {
   }
 
   function removeId(AddressToUintsMap storage map, address addr, uint256 id) internal {
-    require(exists(map, addr, id), "Enumeration: id doesn't exist");
+    require(exists(map, addr, id), "EnumerableMultipleMap: id doesn't exist");
 
     uint256 lastIndex = map.counts[addr] - 1;
     uint256 index = map.indexes[id];
@@ -46,4 +46,5 @@ library EnumerableMultipleMap {
     delete map.data[addr][lastIndex];
     map.counts[addr] -= 1;
   }
+
 }
