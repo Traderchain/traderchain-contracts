@@ -25,8 +25,8 @@ describe("Traderchain", function () {
         
     let nav = await tc.currentSystemNAV(systemId);
     let sharePrice = await tc.currentSystemSharePrice(systemId);
-    let assetPrice = await tc.getAssetPrice();
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice});
+    let wethPrice = await Util.assetPrice(WETH);
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice});
     
     let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
     let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
@@ -150,7 +150,7 @@ describe("Traderchain", function () {
     Util.log({systemId, usdcAmount});
     
     // Current values
-    const wethPrice = await tc.getAssetPrice();    
+    const wethPrice = await Util.assetPrice(WETH);    
     Util.log({wethPrice: Util.amountFloat(wethPrice,6)});
     
     let nav = await tc.currentSystemNAV(systemId);
@@ -240,9 +240,9 @@ describe("Traderchain", function () {
 
     let nav = await tc.currentSystemNAV(systemId);
     let sharePrice = await tc.currentSystemSharePrice(systemId);
-    let assetPrice = await tc.getAssetPrice();
+    let wethPrice = await Util.assetPrice(WETH);
     let totalShares = await tc.totalSystemShares(systemId);
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice, totalShares});
 
     let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
     let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
@@ -255,9 +255,9 @@ describe("Traderchain", function () {
                 
     nav = await tc.currentSystemNAV(systemId);
     sharePrice = await tc.currentSystemSharePrice(systemId);
-    assetPrice = await tc.getAssetPrice();
+    wethPrice = await Util.assetPrice(WETH);
     totalShares = await tc.totalSystemShares(systemId);
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), assetPrice, totalShares});
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice, totalShares});
 
     systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
     systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    

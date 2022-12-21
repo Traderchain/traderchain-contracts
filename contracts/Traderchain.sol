@@ -84,13 +84,6 @@ contract Traderchain is
     (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
   }
-  
-  // TODO: refactor
-  /// Price of WETH in USDC (10^6)
-  function getAssetPrice() public view virtual returns (uint256) {
-    uint256 pairPrice = getPairPrice(USDC, WETH);
-    return (uint256(10)**18) / pairPrice;    
-  }
 
   /// Current system NAV in USDC (10^6)
   function currentSystemNAV(uint256 systemId) public view virtual returns (uint256) {

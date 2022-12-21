@@ -90,6 +90,11 @@ class Util {
     }    
   }
   
+  async assetPrice(assetAddress: string) {
+    const price = await this.tc.getPairPrice(USDC, assetAddress);
+    return this.amountBN(1).div(price);
+  }
+
   async takeWhaleUSDC(toAddress: string, amount: BigNumberish) {
     console.log('\tUtil.takeWhaleUSDC()');
     this.log({toAddress, amount});

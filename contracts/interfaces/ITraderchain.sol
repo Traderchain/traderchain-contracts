@@ -14,10 +14,7 @@ interface ITraderchain {
   function getSystemAssetValue(uint256 systemId, address assetAddress) external view returns (uint256);
     
   function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
-  
-  /// Price of WETH in USDC (10^6)
-  function getAssetPrice() external view returns (uint256);
-  
+    
   /// Current system NAV in USDC (10^6)
   function currentSystemNAV(uint256 systemId) external view returns (uint256);
   
