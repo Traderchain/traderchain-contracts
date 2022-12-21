@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
+import "./libraries/EnumerableMultipleMap.sol";
 import "./interfaces/ISystemVault.sol";
 import "./SystemVault.sol";
 
@@ -23,11 +24,10 @@ contract TradingSystem is
   // Mapping system id to trader address
   mapping(uint256 => address) public systemTraders;
   
-  // Support enumeration for the list of systems owned by a trader
-  mapping(address => mapping(uint256 => uint256)) private traderSystems;
-  mapping(uint256 => uint256) private traderSystemsIndex;
-  mapping(address => uint256) private traderSystemsCount;
-  
+  // Tracking systems owned by a trader
+  using EnumerableMultipleMap for EnumerableMultipleMap.AddressToUintsMap;
+  EnumerableMultipleMap.AddressToUintsMap private traderSystems;
+
   // Mapping system id to vault address
   mapping(uint256 => address) public systemVaults;
 
@@ -61,11 +61,11 @@ contract TradingSystem is
   }
   
   function getTraderSystemsCount(address trader) public view virtual returns (uint256) {
-    return traderSystemsCount[trader];
+    return traderSystems.count(trader);
   }
   
   function getTraderSystemByIndex(address trader, uint256 index) public view virtual returns (uint256) {
-    return traderSystems[trader][index];
+    return traderSystems.getId(trader, index);
   }
 
   function getSystemVault(uint256 systemId) public view virtual returns (address) {
@@ -78,7 +78,7 @@ contract TradingSystem is
     uint256 systemId = _systemIdTracker.current();
 
     systemTraders[systemId] = trader;
-    _addSystemToTraderEnumeration(trader, systemId);
+    traderSystems.addId(trader, systemId);
     _createSystemVault(systemId);
     
     _systemIdTracker.increment();
@@ -107,6 +107,8 @@ contract TradingSystem is
     return super.supportsInterface(interfaceId);
   }
   
+  // TODO: allow to transfer a system's ownership
+
   /***
    * Private functions
    */
@@ -114,27 +116,5 @@ contract TradingSystem is
     address vault = address(new SystemVault(traderchain, address(this), systemId));
     systemVaults[systemId] = vault;
   }
-  
-  function _addSystemToTraderEnumeration(address trader, uint256 systemId) private {
-    uint256 index = traderSystemsCount[trader];
-    traderSystems[trader][index] = systemId;
-    traderSystemsIndex[systemId] = index;
-    traderSystemsCount[trader] += 1;
-  }
-
-  function _removeSystemFromTraderEnumeration(address trader, uint256 systemId) private {
-    uint256 lastIndex = traderSystemsCount[trader] - 1;
-    uint256 index = traderSystemsIndex[systemId];
-
-    if (index != lastIndex) {
-        uint256 lastSystemId = traderSystems[trader][lastIndex];
-        traderSystems[trader][index] = lastSystemId;
-        traderSystemsIndex[lastSystemId] = index;
-    }
-
-    delete traderSystemsIndex[systemId];
-    delete traderSystems[trader][lastIndex];
-    traderSystemsCount[trader] -= 1;
-  }
-     
+   
 }

@@ -26,7 +26,7 @@ interface ITraderchain {
   function createTradingSystem() external;
   
   /// Investors buy system shares
-  function buyShares(uint256 systemId, address tokenId, uint256 amountIn) external  returns (uint256 numberOfShares);
+  function buyShares(uint256 systemId, address tokenIn, uint256 amountIn) external  returns (uint256 numberOfShares);
   
   /// Investors sell system shares and receive funds
   function sellShares(uint256 systemId, uint256 numberOfShares, address tokenOut) external returns (uint256 amountOut);  
