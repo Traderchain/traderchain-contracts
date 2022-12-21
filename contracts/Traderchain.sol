@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
+import "./libraries/EnumerableMultipleMap.sol";
 import './interfaces/IERC20.sol';
 import './interfaces/ISwapRouter.sol';
 import './interfaces/IUniswapV3Factory.sol';
@@ -28,6 +29,10 @@ contract Traderchain is
   // Supported assets
   using EnumerableSet for EnumerableSet.AddressSet;
   EnumerableSet.AddressSet private supportedAssets;
+
+  // Tracking systems assets
+  using EnumerableMultipleMap for EnumerableMultipleMap.UintToAddressesMap;
+  EnumerableMultipleMap.UintToAddressesMap private systemAssets;
 
   // Tracking system asset amounts
   mapping(uint256 => mapping(address => uint256)) systemAssetAmounts; // systemId => assetAddress => assetAmount
@@ -74,6 +79,7 @@ contract Traderchain is
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
   }
   
+  // TODO: refactor
   /// Price of WETH in USDC (10^6)
   function getAssetPrice() public view returns (uint256) {
     uint256 pairPrice = getPairPrice(USDC, WETH);
@@ -141,11 +147,13 @@ contract Traderchain is
     uint256 fundAmount = amountIn - assetAmount;
     
     IERC20(tokenIn).transferFrom(investor, vault, fundAmount);
+    systemAssets.addAddress(systemId, tokenIn);
     systemAssetAmounts[systemId][tokenIn] += fundAmount;
     
     if (assetAmount > 0) {
       IERC20(tokenIn).transferFrom(investor, address(this), assetAmount);
       uint256 wethAmount = _swapAsset(systemId, tokenIn, WETH, assetAmount);
+      systemAssets.addAddress(systemId, WETH);
       systemAssetAmounts[systemId][WETH] += wethAmount;  
     }      
     
@@ -172,6 +180,7 @@ contract Traderchain is
       IERC20(WETH).transferFrom(vault, address(this), assetAmount);
       uint256 usdcAmount = _swapAsset(systemId, WETH, tokenOut, assetAmount);
       
+      systemAssets.addAddress(systemId, tokenOut);
       systemAssetAmounts[systemId][tokenOut] += usdcAmount;
       systemAssetAmounts[systemId][WETH] -= assetAmount;
     } 
@@ -218,6 +227,8 @@ contract Traderchain is
     
     systemAssetAmounts[systemId][tokenIn] -= amountIn;
     systemAssetAmounts[systemId][tokenOut] += amountOut;
+
+    systemAssets.addAddress(systemId, tokenOut);
   }
       
   function placeBuyOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) { 

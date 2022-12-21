@@ -21,17 +21,19 @@ library EnumerableMultipleMap {
     return map.indexes[id] > 0 || map.data[addr][0] == id;
   }
 
-  function addId(AddressToUintsMap storage map, address addr, uint256 id) internal {    
-    require(!exists(map, addr, id), "EnumerableMultipleMap: id already added");
+  function addId(AddressToUintsMap storage map, address addr, uint256 id) internal returns (bool) {
+    if (exists(map, addr, id))  return false;
 
     uint256 index = map.counts[addr];
     map.data[addr][index] = id;
     map.indexes[id] = index;
     map.counts[addr] += 1;
+
+    return true;
   }
 
-  function removeId(AddressToUintsMap storage map, address addr, uint256 id) internal {
-    require(exists(map, addr, id), "EnumerableMultipleMap: id doesn't exist");
+  function removeId(AddressToUintsMap storage map, address addr, uint256 id) internal returns (bool) {
+    if (!exists(map, addr, id))  return false;
 
     uint256 lastIndex = map.counts[addr] - 1;
     uint256 index = map.indexes[id];
@@ -45,6 +47,57 @@ library EnumerableMultipleMap {
     delete map.indexes[id];
     delete map.data[addr][lastIndex];
     map.counts[addr] -= 1;
+
+    return true;
+  }
+
+
+  struct UintToAddressesMap {
+    mapping(uint256 => mapping(uint256 => address)) data; // id => index => addr
+    mapping(address => uint256) indexes; // address => index
+    mapping(uint256 => uint256) counts; // id => count
+  }
+
+  function count(UintToAddressesMap storage map, uint256 id) internal view returns (uint256) {
+    return map.counts[id];
+  }
+  
+  function getAddress(UintToAddressesMap storage map, uint256 id, uint256 index) internal view returns (address) {
+    return map.data[id][index];
+  }
+
+  function exists(UintToAddressesMap storage map, uint256 id, address addr) internal view returns (bool) {
+    return map.indexes[addr] > 0 || map.data[id][0] == addr;
+  }
+
+  function addAddress(UintToAddressesMap storage map, uint256 id, address addr) internal returns (bool) {
+    if (exists(map, id, addr))  return false;
+
+    uint256 index = map.counts[id];
+    map.data[id][index] = addr;
+    map.indexes[addr] = index;
+    map.counts[id] += 1;
+
+    return true;
+  }
+
+  function removeAddress(UintToAddressesMap storage map, uint256 id, address addr) internal returns (bool) {
+    if (!exists(map, id, addr))  return false;
+
+    uint256 lastIndex = map.counts[id] - 1;
+    uint256 index = map.indexes[addr];
+
+    if (index < lastIndex) {
+        address lastAddress = map.data[id][lastIndex];
+        map.data[id][index] = lastAddress;
+        map.indexes[lastAddress] = index;
+    }
+
+    delete map.indexes[addr];
+    delete map.data[id][lastIndex];
+    map.counts[id] -= 1;
+
+    return true;
   }
 
 }
