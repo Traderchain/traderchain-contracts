@@ -61,16 +61,16 @@ contract Traderchain is
     tradingSystem = ITradingSystem(_tradingSystem);
   }
 
-  function addSupportedAsset(address tokenAddress) external onlyAdmin {
-    supportedAssets.add(tokenAddress);
+  function addSupportedAsset(address assetAddress) external onlyAdmin {
+    supportedAssets.add(assetAddress);
   }
 
-  function removeSupportedAsset(address tokenAddress) external onlyAdmin {
-    supportedAssets.remove(tokenAddress);
+  function removeSupportedAsset(address assetAddress) external onlyAdmin {
+    supportedAssets.remove(assetAddress);
   }
 
-  function getSystemAssetAmount(uint256 systemId, address tokenAddress) public view virtual returns (uint256) {
-    return systemAssetAmounts[systemId][tokenAddress];
+  function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
+    return systemAssetAmounts[systemId][assetAddress];
   }
 
   /// System asset value in USDC (10^6)
