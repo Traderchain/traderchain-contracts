@@ -9,6 +9,9 @@ interface ITraderchain {
   function removeSupportedAsset(address tokenAddress) external;
 
   function getSystemAssetAmount(uint256 systemId, address tokenAddress) external view returns (uint256);
+
+  /// System asset value in USDC (10^6)
+  function getSystemAssetValue(uint256 systemId, address assetAddress) external view returns (uint256);
     
   function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
   

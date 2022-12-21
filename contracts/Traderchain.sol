@@ -72,8 +72,14 @@ contract Traderchain is
   function getSystemAssetAmount(uint256 systemId, address tokenAddress) public view virtual returns (uint256) {
     return systemAssetAmounts[systemId][tokenAddress];
   }
-    
-  function getPairPrice(address tokenIn, address tokenOut) public view returns (uint256) {
+
+  /// System asset value in USDC (10^6)
+  function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
+    uint256 assetPrice = assetAddress != USDC ? getPairPrice(USDC, assetAddress) : 1;
+    return systemAssetAmounts[systemId][assetAddress] / assetPrice;    
+  }
+
+  function getPairPrice(address tokenIn, address tokenOut) public view virtual returns (uint256) {
     IUniswapV3Pool pool = IUniswapV3Pool(swapFactory.getPool(tokenIn, tokenOut, poolFee));
     (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
@@ -81,20 +87,26 @@ contract Traderchain is
   
   // TODO: refactor
   /// Price of WETH in USDC (10^6)
-  function getAssetPrice() public view returns (uint256) {
+  function getAssetPrice() public view virtual returns (uint256) {
     uint256 pairPrice = getPairPrice(USDC, WETH);
     return (uint256(10)**18) / pairPrice;    
   }
-  
+
   /// Current system NAV in USDC (10^6)
   function currentSystemNAV(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
     if (totalShares == 0)  return 0;
     
-    uint256 wethPrice = getAssetPrice();
-    uint256 fundValue = systemAssetAmounts[systemId][USDC];
-    uint256 assetValue = systemAssetAmounts[systemId][WETH] * wethPrice / (uint256(10)**18);
-    return fundValue + assetValue;
+    uint256 nav = 0;
+    uint256 assetCount = systemAssets.count(systemId);
+
+    for (uint256 i = 0; i < assetCount; i++) {
+      address assetAddress = systemAssets.getAddress(systemId, i);
+      uint256 assetValue = getSystemAssetValue(systemId, assetAddress);
+      nav += assetValue;      
+    }
+
+    return nav;    
   }
   
   /// Current system share price in USDC (10^6)
