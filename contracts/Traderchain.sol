@@ -16,10 +16,7 @@ import "./interfaces/ISystemVault.sol";
 contract Traderchain is
   Context,
   AccessControlEnumerable
-{
-  address constant public USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; 
-  address constant public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-  
+{  
   uint24 public constant poolFee = 3000; // TODO: set by a pool
   
   ISwapRouter private swapRouter;  
@@ -30,13 +27,16 @@ contract Traderchain is
   using EnumerableSet for EnumerableSet.AddressSet;
   EnumerableSet.AddressSet private supportedAssets;
 
+  // System base currency
+  mapping(uint256 => address) private systemBaseCurrencies;
+
   // Tracking systems assets
   using EnumerableMultipleMap for EnumerableMultipleMap.UintToAddressesMap;
   EnumerableMultipleMap.UintToAddressesMap private systemAssets;
 
   // Tracking system asset amounts
-  mapping(uint256 => mapping(address => uint256)) systemAssetAmounts; // systemId => assetAddress => assetAmount
-  
+  mapping(uint256 => mapping(address => uint256)) private systemAssetAmounts; // systemId => assetAddress => assetAmount
+
   /***
    * Public functions
    */
@@ -69,14 +69,8 @@ contract Traderchain is
     supportedAssets.remove(assetAddress);
   }
 
-  function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
-    return systemAssetAmounts[systemId][assetAddress];
-  }
-
-  /// System asset value in USDC (10^6)
-  function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
-    uint256 assetPrice = assetAddress != USDC ? getPairPrice(USDC, assetAddress) : 1;
-    return systemAssetAmounts[systemId][assetAddress] / assetPrice;    
+  function getSystemBaseCurency(uint256 systemId) public view virtual returns (address) {
+    return systemBaseCurrencies[systemId];
   }
 
   function getPairPrice(address tokenIn, address tokenOut) public view virtual returns (uint256) {
@@ -85,7 +79,18 @@ contract Traderchain is
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
   }
 
-  /// Current system NAV in USDC (10^6)
+  function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
+    return systemAssetAmounts[systemId][assetAddress];
+  }
+
+  /// System asset value in a base currency
+  function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
+    address baseCurrency = getSystemBaseCurency(systemId);
+    uint256 assetPrice = assetAddress != baseCurrency ? getPairPrice(baseCurrency, assetAddress) : 1;
+    return systemAssetAmounts[systemId][assetAddress] / assetPrice;    
+  }
+
+  /// Current system NAV in a base currency
   function currentSystemNAV(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
     if (totalShares == 0)  return 0;
@@ -99,13 +104,19 @@ contract Traderchain is
       nav += assetValue;      
     }
 
-    return nav;    
+    return nav;
   }
   
-  /// Current system share price in USDC (10^6)
+  /// Current system share price in a base currency
   function currentSystemSharePrice(uint256 systemId) public view virtual returns (uint256) {
     uint256 totalShares = tradingSystem.totalSupply(systemId);
-    if (totalShares == 0)  return 10**3; // Init price: 1 Share = 0.001 USDC
+
+    // Initial share price
+    if (totalShares == 0) {
+      address baseCurrency = getSystemBaseCurency(systemId);
+      uint8 decimals = IERC20(baseCurrency).decimals();      
+      return 10**(decimals-3); // TODO: review init price for a potential case of switching the base currency
+    }
         
     uint256 nav = currentSystemNAV(systemId);
     uint256 sharePrice = nav / totalShares;
@@ -122,9 +133,12 @@ contract Traderchain is
     return tradingSystem.balanceOf(investor, systemId);
   }
   
-  function createTradingSystem() public {
-    address trader = _msgSender();    
-    tradingSystem.createSystem(trader);        
+  function createTradingSystem(address baseCurrency) public {
+    require(supportedAssets.contains(baseCurrency), "Traderchain: baseCurrency is not supported");
+
+    address trader = _msgSender();
+    uint256 systemId = tradingSystem.createSystem(trader);
+    systemBaseCurrencies[systemId] = baseCurrency;
   }
   
   /// Investors buy system shares

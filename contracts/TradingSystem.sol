@@ -19,17 +19,17 @@ contract TradingSystem is
   using Counters for Counters.Counter;
   Counters.Counter private _systemIdTracker;
 
-  address public immutable traderchain;  
+  address public immutable traderchain;
   
   // Mapping system id to trader address
-  mapping(uint256 => address) public systemTraders;
+  mapping(uint256 => address) private systemTraders;
   
   // Tracking systems owned by a trader
   using EnumerableMultipleMap for EnumerableMultipleMap.AddressToUintsMap;
   EnumerableMultipleMap.AddressToUintsMap private traderSystems;
 
   // Mapping system id to vault address
-  mapping(uint256 => address) public systemVaults;
+  mapping(uint256 => address) private systemVaults;
 
   /***
    * Public functions
@@ -72,8 +72,9 @@ contract TradingSystem is
     return systemVaults[systemId];
   }
   
-  function createSystem(address trader) public virtual 
+  function createSystem(address trader) public virtual
     onlyTraderchain
+    returns (uint256)
   {  
     uint256 systemId = _systemIdTracker.current();
 
@@ -82,6 +83,7 @@ contract TradingSystem is
     _createSystemVault(systemId);
     
     _systemIdTracker.increment();
+    return systemId;
   }
   
   function mintShares(uint256 systemId, address investor, uint256 shares) public virtual 

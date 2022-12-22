@@ -8,24 +8,24 @@ interface ITraderchain {
 
   function removeSupportedAsset(address assetAddress) external;
 
+  function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
+
   function getSystemAssetAmount(uint256 systemId, address assetAddress) external view returns (uint256);
 
-  /// System asset value in USDC (10^6)
+  /// System asset value in a base currency
   function getSystemAssetValue(uint256 systemId, address assetAddress) external view returns (uint256);
-    
-  function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
-    
-  /// Current system NAV in USDC (10^6)
+  
+  /// Current system NAV in a base currency
   function currentSystemNAV(uint256 systemId) external view returns (uint256);
   
-  /// Current system share price in USDC (10^6)
+  /// Current system share price in a base currency
   function currentSystemSharePrice(uint256 systemId) external view returns (uint256);
   
   function totalSystemShares(uint256 systemId) external view returns (uint256);
   
   function getInvestorShares(uint256 systemId, address investor) external view returns (uint256);
   
-  function createTradingSystem() external;
+  function createTradingSystem(address baseCurrency) external;
   
   /// Investors buy system shares
   function buyShares(uint256 systemId, address tokenIn, uint256 amountIn) external  returns (uint256 numberOfShares);

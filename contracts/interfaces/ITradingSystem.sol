@@ -22,7 +22,7 @@ interface ITradingSystem {
 
     function getSystemVault(uint256 systemId) external view returns (address);
     
-    function createSystem(address trader) external;
+    function createSystem(address trader) external returns (uint256);
     
     function mintShares(uint256 systemId, address investor, uint256 shares) external;    
     

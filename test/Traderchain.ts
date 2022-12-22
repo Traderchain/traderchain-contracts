@@ -87,7 +87,7 @@ describe("Traderchain", function () {
     const systemId = await system.currentSystemId();
     Util.log({systemId});
     
-    await tc.connect(trader).createTradingSystem();
+    await tc.connect(trader).createTradingSystem(USDC);
     expect(await system.getSystemTrader(systemId)).to.equal(trader.address);
     expect(await system.getTraderSystemsCount(trader.address)).to.equal(1);
     expect(await system.getTraderSystemByIndex(trader.address, 0)).to.equal(systemId);
