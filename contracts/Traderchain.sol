@@ -215,7 +215,7 @@ contract Traderchain is
     tradingSystem.burnShares(systemId, investor, numberOfShares);
   }
   
-  /// A trader places a buy/sell order for his own trading system  
+  /// A trader places a swap order for his own trading system 
   function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) public 
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
@@ -223,41 +223,19 @@ contract Traderchain is
     require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
     require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
     require(tokenIn != tokenOut, "Traderchain: tokenIn and tokenOut must be different");
-
-    // TODO: check for sufficient token reserve
-    // if (tokenIn == USDC) {
-    //   uint256 systemFund = systemAssetAmounts[systemId][USDC];
-    //   require(amountIn <= systemFund, "Traderchain: not enough system funds");  
-    // }     
-    // else if (tokenIn == WETH) {
-    //   uint256 systemAsset = systemAssetAmounts[systemId][WETH];
-    //   require(amountIn <= systemAsset, "Traderchain: not enough system assets");
-    // }
-    // else {
-    //   revert("Traderchain: only USDC and WETH are supported for now");
-    // }
-  
+    require(amountIn <= systemAssetAmounts[systemId][tokenIn], "Traderchain: amountIn is more than the amount in vault");
+    
     address vault = tradingSystem.getSystemVault(systemId);
       
     ISystemVault(vault).approve(tokenIn, amountIn);
     IERC20(tokenIn).transferFrom(vault, address(this), amountIn);
-    IERC20(tokenIn).approve(address(swapRouter), amountIn);
-      
     amountOut = _swapAsset(systemId, tokenIn, tokenOut, amountIn);
     
-    systemAssetAmounts[systemId][tokenIn] -= amountIn;
-    systemAssetAmounts[systemId][tokenOut] += amountOut;
+    _decreaseSystemAssetAmount(systemId, tokenIn, amountIn);
+    _increaseSystemAssetAmount(systemId, tokenOut, amountOut);
 
     systemAssets.addAddress(systemId, tokenOut);
-  }
-      
-  function placeBuyOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) { 
-    return placeOrder(systemId, USDC, WETH, amountIn);
-  }
-    
-  function placeSellOrder(uint256 systemId, uint256 amountIn) external onlySystemOwner(systemId) returns (uint256) {          
-    return placeOrder(systemId, WETH, USDC, amountIn);
-  }
+  }      
 
   /***
    * Private functions

@@ -33,10 +33,6 @@ interface ITraderchain {
   /// Investors sell system shares and receive funds
   function sellShares(uint256 systemId, uint256 numberOfShares, address tokenOut) external returns (uint256 amountOut);  
     
-  /// A trader places a buy/sell order for his own trading system  
+  /// A trader places a swap order for his own trading system  
   function placeOrder(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) external returns (uint256 amountOut);
-        
-  function placeBuyOrder(uint256 systemId, uint256 amountIn) external returns (uint256);
-    
-  function placeSellOrder(uint256 systemId, uint256 amountIn) external returns (uint256);
 }
