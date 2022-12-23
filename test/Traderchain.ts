@@ -1,53 +1,48 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import Util, { 
-  ADDRESS_ZERO, USDC, WETH, USDC_WHALE, SWAP_ROUTER,
+  ADDRESS_ZERO, USDC, WETH,
   BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
 describe("Traderchain", function () {  
-  let signers: SignerWithAddress[] = [];
+  let signers: SignerWithAddress[];
   let trader: SignerWithAddress;
   let investor1: SignerWithAddress;
-  
-  let tc: any;
-  let system: any;
-  
+    
   /***
   * Shared functions
   */          
   async function placeOrder(systemId: number, tokenIn: string, tokenOut: string, amountIn: any) {    
     Util.log({systemId, tokenIn, tokenOut, amountIn});    
-    const vault = await system.getSystemVault(systemId);    
+    const vault = await Util.system.getSystemVault(systemId);    
         
-    let nav = await tc.currentSystemNAV(systemId);
-    let sharePrice = await tc.currentSystemSharePrice(systemId);
+    let nav = await Util.tc.currentSystemNAV(systemId);
+    let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     let wethPrice = await Util.assetPrice(WETH);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice});
     
-    let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
-    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
+    let systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC); 
+    let systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
     
-    const amountOut = await tc.connect(trader).callStatic.placeOrder(systemId, tokenIn, tokenOut, amountIn);
-    await tc.connect(trader).placeOrder(systemId, tokenIn, tokenOut, amountIn);
+    const amountOut = await Util.tc.connect(trader).callStatic.placeOrder(systemId, tokenIn, tokenOut, amountIn);
+    await Util.tc.connect(trader).placeOrder(systemId, tokenIn, tokenOut, amountIn);
     Util.log({amountOut});
 
     const expectedSystemFund = tokenIn == USDC ? systemFund.sub(amountIn) : systemFund.add(amountOut);
     const expectedSystemAsset = tokenIn == USDC ? systemAsset.add(amountOut) : systemAsset.sub(amountIn);
     Util.log({expectedSystemFund, expectedSystemAsset});
     
-    const vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
-    const vaultWethBalance = await Util.wethToken.balanceOf(vault);
+    const vaultUsdcBalance = await Util.usdc.balanceOf(vault);
+    const vaultWethBalance = await Util.weth.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});
     expect(vaultUsdcBalance).to.equal(expectedSystemFund);
     expect(vaultWethBalance).to.equal(expectedSystemAsset);
     
-    systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
-    systemAsset = await tc.getSystemAssetAmount(systemId, WETH); 
+    systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC); 
+    systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH); 
     Util.log({systemFund, systemAsset});
     expect(systemFund).to.equal(vaultUsdcBalance);
     expect(systemAsset).to.equal(vaultWethBalance);
@@ -74,25 +69,23 @@ describe("Traderchain", function () {
   */
   before(async () => {   
     await Util.resetForkState();
+    await Util.initContracts();
+
     signers = await ethers.getSigners();
     trader = signers[0];
     investor1 = signers[1];
-          
-    await Util.initContracts();
-    tc = Util.tc;
-    system = Util.system;
   });
 
   it("A trader can create a trading system including a vault", async function () {
-    const systemId = await system.currentSystemId();
+    const systemId = await Util.system.currentSystemId();
     Util.log({systemId});
     
-    await tc.connect(trader).createTradingSystem(USDC);
-    expect(await system.getSystemTrader(systemId)).to.equal(trader.address);
-    expect(await system.getTraderSystemsCount(trader.address)).to.equal(1);
-    expect(await system.getTraderSystemByIndex(trader.address, 0)).to.equal(systemId);
+    await Util.tc.connect(trader).createTradingSystem(USDC);
+    expect(await Util.system.getSystemTrader(systemId)).to.equal(trader.address);
+    expect(await Util.system.getTraderSystemsCount(trader.address)).to.equal(1);
+    expect(await Util.system.getTraderSystemByIndex(trader.address, 0)).to.equal(systemId);
     
-    const vault = await system.getSystemVault(systemId);
+    const vault = await Util.system.getSystemVault(systemId);
     Util.log({vault});
     expect(vault).not.to.equal(ADDRESS_ZERO);
     
@@ -101,39 +94,39 @@ describe("Traderchain", function () {
     const vaultTradingSystem = await vaultContract.tradingSystem();
     const vaultSystemId = await vaultContract.systemId();
     Util.log({vaultTraderchain, vaultTradingSystem, vaultSystemId});
-    expect(vaultTraderchain).to.equal(tc.address);
-    expect(vaultTradingSystem).to.equal(system.address);
+    expect(vaultTraderchain).to.equal(Util.tc.address);
+    expect(vaultTradingSystem).to.equal(Util.system.address);
     expect(vaultSystemId).to.equal(systemId);
     
     const DEFAULT_ADMIN_ROLE = await vaultContract.DEFAULT_ADMIN_ROLE();
-    expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, system.address)).to.equal(true);
+    expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, Util.system.address)).to.equal(true);
   });
   
   it("An investor can buy system shares to initiate share issuance", async function () {
     const systemId = 1;
-    const vault = await system.getSystemVault(systemId);        
+    const vault = await Util.system.getSystemVault(systemId);        
     const tokenIn = USDC;
     const usdcAmount = Util.amountBN(100, 6);
-    const sharePrice = await tc.currentSystemSharePrice(systemId);
+    const sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     const expectedShares = usdcAmount.div(sharePrice);
     Util.log({usdcAmount, sharePrice: Util.amountFloat(sharePrice,6), expectedShares});
     
-    await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
+    await Util.usdc.connect(investor1).approve(Util.tc.address, usdcAmount);
     
-    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
-    await tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
+    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
+    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
     Util.log({numberOfShares});
     expect(numberOfShares).to.equal(expectedShares);
     
-    const vaultBalance = await Util.usdcToken.balanceOf(vault);
+    const vaultBalance = await Util.usdc.balanceOf(vault);
     Util.log({vaultBalance});
     expect(vaultBalance).to.equal(usdcAmount);
     
-    const systemFund = await tc.getSystemAssetAmount(systemId, USDC);
+    const systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC);
     Util.log({systemFund});
     expect(systemFund).to.equal(usdcAmount);
     
-    const investorShares = await system.balanceOf(investor1.address, systemId);
+    const investorShares = await Util.system.balanceOf(investor1.address, systemId);
     Util.log({investorShares: investorShares.toString()});
     expect(investorShares).to.equal(numberOfShares);
   });
@@ -146,26 +139,26 @@ describe("Traderchain", function () {
     const systemId = 1;
     const tokenIn = USDC;
     const usdcAmount = Util.amountBN(100, 6);    
-    const vault = await system.getSystemVault(systemId);
+    const vault = await Util.system.getSystemVault(systemId);
     Util.log({systemId, usdcAmount});
     
     // Current values
     const wethPrice = await Util.assetPrice(WETH);    
     Util.log({wethPrice: Util.amountFloat(wethPrice,6)});
     
-    let nav = await tc.currentSystemNAV(systemId);
-    let sharePrice = await tc.currentSystemSharePrice(systemId);
+    let nav = await Util.tc.currentSystemNAV(systemId);
+    let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
     
-    let investorShares = await system.balanceOf(investor1.address, systemId);
+    let investorShares = await Util.system.balanceOf(investor1.address, systemId);
     Util.log({investorShares});
   
-    let vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
-    let vaultWethBalance = await Util.wethToken.balanceOf(vault);
+    let vaultUsdcBalance = await Util.usdc.balanceOf(vault);
+    let vaultWethBalance = await Util.weth.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});    
     
-    let systemFund = await tc.getSystemAssetAmount(systemId, USDC);
-    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);
+    let systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC);
+    let systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH);
     Util.log({systemFund, systemAsset});
     
     // Caculate asset allocation
@@ -192,32 +185,32 @@ describe("Traderchain", function () {
     Util.log({expectedFundAmount, expectedAssetAmount, expectedShares, expectedInvestorShares});
 
     // Buy more shares
-    await Util.usdcToken.connect(investor1).approve(tc.address, usdcAmount);
+    await Util.usdc.connect(investor1).approve(Util.tc.address, usdcAmount);
   
-    const numberOfShares = await tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
-    await tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
+    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
+    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
     Util.log({numberOfShares});
     expect(numberOfShares).to.equal(expectedShares);
   
     // Test expected values
-    vaultUsdcBalance = await Util.usdcToken.balanceOf(vault);
-    vaultWethBalance = await Util.wethToken.balanceOf(vault);
+    vaultUsdcBalance = await Util.usdc.balanceOf(vault);
+    vaultWethBalance = await Util.weth.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});        
     expect(vaultUsdcBalance).to.equal(expectedFundAmount);
     expect(Util.amountFloat(vaultWethBalance,12).toFixed(0)).to.equal(Util.amountFloat(expectedAssetAmount,12).toFixed(0));
   
-    systemFund = await tc.getSystemAssetAmount(systemId, USDC);
-    systemAsset = await tc.getSystemAssetAmount(systemId, WETH);
+    systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC);
+    systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH);
     Util.log({systemFund, systemAsset});    
     expect(systemFund).to.equal(vaultUsdcBalance);
     expect(systemAsset).to.equal(vaultWethBalance);
   
-    investorShares = await system.balanceOf(investor1.address, systemId);
+    investorShares = await Util.system.balanceOf(investor1.address, systemId);
     Util.log({investorShares: investorShares.toString()});
     expect(investorShares).to.equal(expectedInvestorShares);
     
-    nav = await tc.currentSystemNAV(systemId);
-    sharePrice = await tc.currentSystemSharePrice(systemId);
+    nav = await Util.tc.currentSystemNAV(systemId);
+    sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
   });
 
@@ -231,40 +224,40 @@ describe("Traderchain", function () {
 
   it("An investor can sell system shares and receive funds", async function () {
     const systemId = 1;
-    let investorShares = await tc.getInvestorShares(systemId, investor1.address);
-    let investorFund = await Util.usdcToken.balanceOf(investor1.address);
+    let investorShares = await Util.tc.getInvestorShares(systemId, investor1.address);
+    let investorFund = await Util.usdc.balanceOf(investor1.address);
     const numberOfShares = investorShares.div(BigNumber.from(2));
     const tokenOut = USDC;
-    const vault = await system.getSystemVault(systemId);    
+    const vault = await Util.system.getSystemVault(systemId);    
     Util.log({systemId, investorShares, investorFund, numberOfShares});
 
-    let nav = await tc.currentSystemNAV(systemId);
-    let sharePrice = await tc.currentSystemSharePrice(systemId);
+    let nav = await Util.tc.currentSystemNAV(systemId);
+    let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     let wethPrice = await Util.assetPrice(WETH);
-    let totalShares = await tc.totalSystemShares(systemId);
+    let totalShares = await Util.tc.totalSystemShares(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice, totalShares});
 
-    let systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
-    let systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
+    let systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC); 
+    let systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
     
     // Sell shares and receive funds
-    const amountOut = await tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares, tokenOut);
-    await tc.connect(investor1).sellShares(systemId, numberOfShares, tokenOut);
+    const amountOut = await Util.tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares, tokenOut);
+    await Util.tc.connect(investor1).sellShares(systemId, numberOfShares, tokenOut);
     Util.log({amountOut});
                 
-    nav = await tc.currentSystemNAV(systemId);
-    sharePrice = await tc.currentSystemSharePrice(systemId);
+    nav = await Util.tc.currentSystemNAV(systemId);
+    sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     wethPrice = await Util.assetPrice(WETH);
-    totalShares = await tc.totalSystemShares(systemId);
+    totalShares = await Util.tc.totalSystemShares(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), wethPrice, totalShares});
 
-    systemFund = await tc.getSystemAssetAmount(systemId, USDC); 
-    systemAsset = await tc.getSystemAssetAmount(systemId, WETH);    
+    systemFund = await Util.tc.getSystemAssetAmount(systemId, USDC); 
+    systemAsset = await Util.tc.getSystemAssetAmount(systemId, WETH);    
     Util.log({systemFund, systemAsset});
         
-    investorShares = await tc.getInvestorShares(systemId, investor1.address);
-    investorFund = await Util.usdcToken.balanceOf(investor1.address);
+    investorShares = await Util.tc.getInvestorShares(systemId, investor1.address);
+    investorFund = await Util.usdc.balanceOf(investor1.address);
     Util.log({investorShares, investorFund});
     
     // TODO: expect

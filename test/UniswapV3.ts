@@ -19,17 +19,17 @@ const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 describe("UniswapV3", function () {
   let signers: SignerWithAddress[] = [];
   
-  let usdcToken: Contract;
-  let wethToken: Contract;
+  let usdc: Contract;
+  let weth: Contract;
     
   let liquidityContract: Contract;
   let swapContract: Contract;
   
   async function takeWhaleUSDC(signer: SignerWithAddress, amount: any) {
     const whaleSigner = await ethers.getImpersonatedSigner(USDC_WHALE);
-    await usdcToken.connect(whaleSigner).transfer(signer.address, amount);
+    await usdc.connect(whaleSigner).transfer(signer.address, amount);
     
-    let usdcBalance = await usdcToken.balanceOf(signer.address);
+    let usdcBalance = await usdc.balanceOf(signer.address);
     Util.log({usdcBalance});
     expect(usdcBalance).to.equal(amount);
   }
@@ -39,8 +39,8 @@ describe("UniswapV3", function () {
     
     signers = await ethers.getSigners();
     
-    usdcToken = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
-    wethToken = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
+    usdc = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
+    weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
 
     const UniswapV3Liquidity = await ethers.getContractFactory("UniswapV3Liquidity");
     liquidityContract = await UniswapV3Liquidity.deploy(POSITION_MANAGER);    
@@ -50,7 +50,7 @@ describe("UniswapV3", function () {
     swapContract = await UniswapV3Swap.deploy(ROUTER);    
     Util.log({'swapContract': swapContract.address});
     
-    let usdcWhaleBalance = await usdcToken.balanceOf(USDC_WHALE);
+    let usdcWhaleBalance = await usdc.balanceOf(USDC_WHALE);
     Util.log({usdcWhaleBalance: formatUnits(usdcWhaleBalance,6)});
     // expect(usdcWhaleBalance).to.equal('66419880835583');
     expect(usdcWhaleBalance).to.gt('1000000');
@@ -66,23 +66,23 @@ describe("UniswapV3", function () {
 
     await takeWhaleUSDC(signers[0], usdcAmount);
     
-    await wethToken.deposit({value: wethAmount});
-    let wethBalance0 = await wethToken.balanceOf(signers[0].address);
+    await weth.deposit({value: wethAmount});
+    let wethBalance0 = await weth.balanceOf(signers[0].address);
     expect(wethBalance0).to.equal(wethAmount);
             
-    await usdcToken.approve(liquidityContract.address, usdcAmount);    
-    await wethToken.approve(liquidityContract.address, wethAmount);
+    await usdc.approve(liquidityContract.address, usdcAmount);    
+    await weth.approve(liquidityContract.address, wethAmount);
                  
-    let result = await liquidityContract.callStatic.mintNewPosition(usdcToken.address, wethToken.address, usdcAmount, wethAmount);
+    let result = await liquidityContract.callStatic.mintNewPosition(usdc.address, weth.address, usdcAmount, wethAmount);
     let positionId = result.tokenId, liquidity = result.liquidity, usdcStaked = result.amount0, wethStaked = result.amount1;
     Util.log({positionId, liquidity, usdcStaked, wethStaked});
-    await liquidityContract.mintNewPosition(usdcToken.address, wethToken.address, usdcAmount, wethAmount);
+    await liquidityContract.mintNewPosition(usdc.address, weth.address, usdcAmount, wethAmount);
     
-    const usdcBalance0 = await usdcToken.balanceOf(signers[0].address);
+    const usdcBalance0 = await usdc.balanceOf(signers[0].address);
     Util.log({usdcBalance0});
     expect(usdcBalance0).to.equal(usdcAmount.sub(usdcStaked));
     
-    wethBalance0 = await wethToken.balanceOf(signers[0].address);
+    wethBalance0 = await weth.balanceOf(signers[0].address);
     Util.log({wethBalance0});
     expect(wethBalance0).to.equal(wethAmount.sub(wethStaked));
   });
@@ -93,17 +93,17 @@ describe("UniswapV3", function () {
   
     await takeWhaleUSDC(signers[1], usdcAmount);
     
-    await usdcToken.connect(signers[1]).approve(swapContract.address, usdcAmount);
+    await usdc.connect(signers[1]).approve(swapContract.address, usdcAmount);
     
-    let wethAmount = await swapContract.connect(signers[1]).callStatic.swapExactInputSingleHop(usdcToken.address, wethToken.address, usdcAmount);
+    let wethAmount = await swapContract.connect(signers[1]).callStatic.swapExactInputSingleHop(usdc.address, weth.address, usdcAmount);
     Util.log({wethAmount});    
-    await swapContract.connect(signers[1]).swapExactInputSingleHop(usdcToken.address, wethToken.address, usdcAmount);
+    await swapContract.connect(signers[1]).swapExactInputSingleHop(usdc.address, weth.address, usdcAmount);
     
-    const usdcBalance1 = await usdcToken.balanceOf(signers[1].address);
+    const usdcBalance1 = await usdc.balanceOf(signers[1].address);
     Util.log({usdcBalance1});
     expect(usdcBalance1).to.equal(0);
     
-    let wethBalance1 = await wethToken.balanceOf(signers[1].address);
+    let wethBalance1 = await weth.balanceOf(signers[1].address);
     Util.log({wethBalance1});
     expect(wethBalance1).to.equal(wethAmount);
   });  

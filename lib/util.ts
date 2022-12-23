@@ -18,8 +18,8 @@ export const formatUnits = ethers.utils.formatUnits;
 export const formatEther = ethers.utils.formatEther;
 
 class Util {
-  usdcToken: any;
-  wethToken: any;
+  usdc: any;
+  weth: any;
   tc: any;
   system: any;
   
@@ -43,8 +43,8 @@ class Util {
   async initContracts() {
     const signers = await ethers.getSigners();
     
-    this.usdcToken = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
-    this.wethToken = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
+    this.usdc = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
+    this.weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
     
     const Traderchain = await ethers.getContractFactory("Traderchain");
     this.tc = await Traderchain.deploy(SWAP_ROUTER, SWAP_FACTORY);
@@ -99,13 +99,13 @@ class Util {
     console.log('\tUtil.takeWhaleUSDC()');
     this.log({toAddress, amount});
     
-    let usdcBalance = await this.usdcToken.balanceOf(toAddress);
+    let usdcBalance = await this.usdc.balanceOf(toAddress);
     const newUsdcBalance = usdcBalance.add(amount);
     
     const whaleSigner = await ethers.getImpersonatedSigner(USDC_WHALE);
-    await this.usdcToken.connect(whaleSigner).transfer(toAddress, amount);
+    await this.usdc.connect(whaleSigner).transfer(toAddress, amount);
     
-    usdcBalance = await this.usdcToken.balanceOf(toAddress);
+    usdcBalance = await this.usdc.balanceOf(toAddress);
     this.log({toAddress, usdcBalance});
     expect(usdcBalance).to.equal(newUsdcBalance);
   }
