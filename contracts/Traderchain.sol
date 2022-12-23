@@ -79,6 +79,10 @@ contract Traderchain is
     return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
   }
 
+  function getSystemAssetCount(uint256 systemId) public view virtual returns (uint256) {
+    return systemAssets.count(systemId);
+  }
+
   function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
     return systemAssetAmounts[systemId][assetAddress];
   }

@@ -6,6 +6,8 @@ import Util, {
   BigNumber, formatUnits, formatEther  
 } from '../lib/util';
 
+const BN6 = Util.amountBN(1,6);
+
 describe("Traderchain", function () {  
   let signers: SignerWithAddress[];
   let trader: SignerWithAddress;
@@ -136,75 +138,78 @@ describe("Traderchain", function () {
     await placeBuyOrder();    
   });
 
-  it("An investor can buy more system shares", async function () {    
+  it("An investor can buy more system shares", async function () {        
     const systemId = 1;
     const tokenIn = USDC;
-    const usdcAmount = Util.amountBN(100, 6);    
+    const amountIn = Util.amountBN(100, 6);
     const vault = await Util.system.getSystemVault(systemId);
-    Util.log({systemId, usdcAmount});
-    
-    // Current values
-    const wethPrice = await Util.assetPrice(WETH);    
-    Util.log({wethPrice: Util.amountFloat(wethPrice,6)});
-    
+    const systemAssets = [USDC, WETH];
+    Util.log({systemId, amountIn, systemAssets});
+        
     let nav = await Util.tc.currentSystemNAV(systemId);
     let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
+          
+    // Calculate asset allocations
+    const assetCount = await Util.tc.getSystemAssetCount(systemId);
+    Util.log({assetCount});
+    expect(assetCount).to.equal(systemAssets.length);
     
-    let investorShares = await Util.system.balanceOf(investor1.address, systemId);
-    Util.log({investorShares});
-  
-    let vaultUsdcBalance = await Util.usdc.balanceOf(vault);
-    let vaultWethBalance = await Util.weth.balanceOf(vault);
-    Util.log({vaultUsdcBalance, vaultWethBalance});    
-    
-    let systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);
-    let systemWethAmount = await Util.tc.getSystemAssetAmount(systemId, WETH);
-    Util.log({systemUsdcAmount, systemWethAmount});
-    
-    // Caculate asset allocation
-    const BN6 = Util.amountBN(1,6);
-    const BN0 = BigNumber.from(0);
-    let usdcAllocation = BN6;
-    let wethAllocation = BN0;
-    if (nav.gt(BN0)) {
-      usdcAllocation = BN6.mul(systemUsdcAmount).div(nav);
-      wethAllocation = BN6.sub(usdcAllocation);
+    const expectedAssetAmounts: any = {};
+    for (const assetAddress of systemAssets) {
+      const assetValue = await Util.tc.getSystemAssetValue(systemId, assetAddress);
+      const assetAllocation = BN6.mul(assetValue).div(nav);
+      const fundAmount = assetAllocation.mul(amountIn).div(BN6);
+      Util.log({assetAddress, assetValue, assetAllocation: Util.amountFloat(assetAllocation,4), fundAmount});
+      if (fundAmount.isZero())  continue;
+
+      expectedAssetAmounts[assetAddress] = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
+      if (assetAddress == tokenIn) {
+        expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(fundAmount);
+      }
+      else {          
+        const assetPrice = await Util.assetPrice(assetAddress);
+        const assetAmount = fundAmount.mul(Util.amountBN(1)).div(assetPrice).mul(BigNumber.from(997)).div(BigNumber.from(1000)); // -0.3% pool fee   
+        Util.log({assetPrice, assetAmount});
+        expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(assetAmount);
+      }
     }
-    Util.log({usdcAllocation: Util.amountFloat(usdcAllocation,4), wethAllocation: Util.amountFloat(wethAllocation,4)});
-    
-    const assetAmount = wethAllocation.mul(usdcAmount).div(BN6);
-    const fundAmount = usdcAmount.sub(assetAmount);
-    const wethAmount = assetAmount.mul(BigNumber.from(997)).div(BigNumber.from(1000)).mul(BigNumber.from(10).pow(18)).div(wethPrice); // -0.3% pool fee   
-    Util.log({assetAmount, fundAmount, wethAmount});
-    
-    // Expected values
-    const expectedFundAmount = systemUsdcAmount.add(fundAmount);
-    const expectedAssetAmount = systemWethAmount.add(wethAmount);
-    const expectedShares = usdcAmount.div(sharePrice);
+    Util.log({expectedAssetAmounts});    
+
+    let investorShares = await Util.system.balanceOf(investor1.address, systemId);
+    const expectedShares = amountIn.div(sharePrice);
     const expectedInvestorShares = investorShares.add(expectedShares);
-    Util.log({expectedFundAmount, expectedAssetAmount, expectedShares, expectedInvestorShares});
+    Util.log({expectedShares, expectedInvestorShares});
 
     // Buy more shares
-    await Util.usdc.connect(investor1).approve(Util.tc.address, usdcAmount);
+    await Util.usdc.connect(investor1).approve(Util.tc.address, amountIn);
   
-    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, usdcAmount);
-    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, usdcAmount);
+    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, amountIn);
+    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, amountIn);
     Util.log({numberOfShares});
     expect(numberOfShares).to.equal(expectedShares);
   
     // Test expected values
-    vaultUsdcBalance = await Util.usdc.balanceOf(vault);
-    vaultWethBalance = await Util.weth.balanceOf(vault);
+    for (const assetAddress of systemAssets) {
+      const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
+      Util.log({assetAddress, systemAssetAmount});
+      if (systemAssetAmount.gt(Util.amountBN(1,12))) {
+        const systemAssetAmountFloat = Util.amountFloat(systemAssetAmount,12).toFixed(0);
+        Util.log({systemAssetAmountFloat});
+        expect(systemAssetAmountFloat).to.equal(Util.amountFloat(expectedAssetAmounts[assetAddress],12).toFixed(0));
+      }
+      else {
+        expect(systemAssetAmount).to.equal(expectedAssetAmounts[assetAddress]);
+      }
+    }
+
+    const systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);
+    const systemWethAmount = await Util.tc.getSystemAssetAmount(systemId, WETH);
+    const vaultUsdcBalance = await Util.usdc.balanceOf(vault);
+    const vaultWethBalance = await Util.weth.balanceOf(vault);
     Util.log({vaultUsdcBalance, vaultWethBalance});        
-    expect(vaultUsdcBalance).to.equal(expectedFundAmount);
-    expect(Util.amountFloat(vaultWethBalance,12).toFixed(0)).to.equal(Util.amountFloat(expectedAssetAmount,12).toFixed(0));
-  
-    systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);
-    systemWethAmount = await Util.tc.getSystemAssetAmount(systemId, WETH);
-    Util.log({systemUsdcAmount, systemWethAmount});    
-    expect(systemUsdcAmount).to.equal(vaultUsdcBalance);
-    expect(systemWethAmount).to.equal(vaultWethBalance);
+    expect(vaultUsdcBalance).to.equal(systemUsdcAmount);
+    expect(vaultWethBalance).to.equal(systemWethAmount);    
   
     investorShares = await Util.system.balanceOf(investor1.address, systemId);
     Util.log({investorShares: investorShares.toString()});

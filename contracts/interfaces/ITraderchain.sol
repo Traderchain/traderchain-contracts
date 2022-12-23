@@ -10,6 +10,8 @@ interface ITraderchain {
 
   function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
 
+  function getSystemAssetCount(uint256 systemId) external view returns (uint256);
+
   function getSystemAssetAmount(uint256 systemId, address assetAddress) external view returns (uint256);
 
   /// System asset value in a base currency

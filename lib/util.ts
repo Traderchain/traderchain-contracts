@@ -8,6 +8,7 @@ export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 export const INIT_SUPPORT_ASSETS = [USDC, WETH];
+export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH' };
 
 export const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
 export const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
@@ -79,15 +80,26 @@ class Util {
   }
     
   log(values: any) {
+    const _formatStr = (s: string) => {
+      return ASSET_NAMES[s] ? `${ASSET_NAMES[s]}_${s}` : s;
+    };
+
     for (let key in values) {
-      let value = values[key];      
+      let value = values[key];
+
       if (BigNumber.isBigNumber(value)) {
         let decimals = value.lt(BigNumber.from(10).pow(10)) ? (value.lt(BigNumber.from(10).pow(6)) ? 0 : 6) : 18;
         value = this.amountStr(value, decimals);
-      } 
-      
-      console.log(`\t${key}: ${value}`);
-    }    
+      }
+      else if (typeof value == 'object') {
+        for (const k in value) {
+          this.log({ [`${key} ${_formatStr(k)}`]: value[k] });
+        }
+        return;
+      }
+                  
+      console.log(`\t${_formatStr(key)}: ${_formatStr(value)}`);
+    }
   }
   
   async assetPrice(assetAddress: string) {
