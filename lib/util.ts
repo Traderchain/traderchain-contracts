@@ -7,6 +7,7 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
+export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const INIT_SUPPORT_ASSETS = [USDC, WETH];
 export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH' };
 
@@ -15,8 +16,11 @@ export const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
 export const SWAP_POOL_WETH_USDC = '0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8';
 
 export const BigNumber = ethers.BigNumber;
+export const parseEther = ethers.utils.parseEther;
 export const formatUnits = ethers.utils.formatUnits;
 export const formatEther = ethers.utils.formatEther;
+
+export const ASSET_CONTRACTS: any = {};
 
 class Util {
   usdc: any;
@@ -46,6 +50,8 @@ class Util {
     
     this.usdc = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
     this.weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
+    ASSET_CONTRACTS[USDC] = this.usdc;
+    ASSET_CONTRACTS[WETH] = this.weth;
     
     const Traderchain = await ethers.getContractFactory("Traderchain");
     this.tc = await Traderchain.deploy(SWAP_ROUTER, SWAP_FACTORY);
@@ -64,6 +70,10 @@ class Util {
     await this.takeWhaleUSDC(signers[0].address, usdcAmount);
     await this.takeWhaleUSDC(signers[1].address, usdcAmount);
     
+    const wethAmount = parseEther('1.0');
+    await this.takeWhaleWETH(signers[0].address, wethAmount);
+    await this.takeWhaleWETH(signers[1].address, wethAmount);
+
     console.log();
   }  
 
@@ -79,6 +89,10 @@ class Util {
     return parseFloat(formatUnits(amount, decimals));
   }
     
+  deductFee(amount: any, fee: number) {
+    return amount.mul(BigNumber.from(1000 - 10*fee)).div(BigNumber.from(1000));
+  }
+
   log(values: any) {
     const _formatStr = (s: string) => {
       return ASSET_NAMES[s] ? `${ASSET_NAMES[s]}_${s}` : s;
@@ -102,7 +116,21 @@ class Util {
     }
   }
   
+  expectApprox(a: BigNumberish, b: BigNumberish, decimals = 18) {
+    console.log('\tUtil.expectApprox()');
+    const af = this.amountFloat(a, decimals).toFixed(0);
+    const bf = this.amountFloat(a, decimals).toFixed(0);
+    this.log({af, bf});
+    expect(af).to.equal(bf);
+  }
+
+  assetContract(assetAddress: string) {    
+    return ASSET_CONTRACTS[assetAddress];
+  }
+
   async assetPrice(assetAddress: string) {
+    if (assetAddress == USDC)  return this.amountBN(1);
+
     const price = await this.tc.getPairPrice(USDC, assetAddress);
     return this.amountBN(1).div(price);
   }
@@ -122,6 +150,21 @@ class Util {
     expect(usdcBalance).to.equal(newUsdcBalance);
   }
   
+  async takeWhaleWETH(toAddress: string, amount: BigNumberish) {
+    console.log('\tUtil.takeWhaleWETH()');
+    this.log({toAddress, amount});
+    
+    let wethBalance = await this.weth.balanceOf(toAddress);
+    const newWethBalance = wethBalance.add(amount);
+    
+    const whaleSigner = await ethers.getImpersonatedSigner(WETH_WHALE);
+    await this.weth.connect(whaleSigner).transfer(toAddress, amount);
+    
+    wethBalance = await this.weth.balanceOf(toAddress);
+    this.log({toAddress, wethBalance});
+    expect(wethBalance).to.equal(newWethBalance);
+  }
+
   async takeWhaleETH(to: string, value: BigNumberish) {
     console.log('\tUtil.takeWhaleETH()');
     this.log({to, value});

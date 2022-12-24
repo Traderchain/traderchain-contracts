@@ -1,12 +1,14 @@
 import { ethers } from "hardhat";
+import { BigNumberish } from "ethers";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import Util, { 
   ADDRESS_ZERO, USDC, WETH,
-  BigNumber, formatUnits, formatEther  
+  BigNumber, parseEther, formatUnits, formatEther  
 } from '../lib/util';
 
 const BN6 = Util.amountBN(1,6);
+const BN18 = Util.amountBN(1,18);
 
 describe("Traderchain", function () {  
   let signers: SignerWithAddress[];
@@ -18,15 +20,23 @@ describe("Traderchain", function () {
   */       
   async function checkVaultBalances(systemId: number) {
     const vault = await Util.system.getSystemVault(systemId);
-    const systemAssets = [USDC, WETH];
-    const assetContracts: any = { [USDC]: Util.usdc, [WETH]: Util.weth };
+    const systemAssets = [USDC, WETH];    
 
     for (const assetAddress of systemAssets) {
       const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
-      const vaultAssetBalance = await assetContracts[assetAddress].balanceOf(vault);
+      const vaultAssetBalance = await Util.assetContract(assetAddress).balanceOf(vault);
       Util.log({assetAddress, systemAssetAmount, vaultAssetBalance});
       expect(vaultAssetBalance).to.equal(systemAssetAmount);
     }
+  }
+
+  async function buyShares(investor: SignerWithAddress, systemId: number, tokenIn: string, amountIn: BigNumberish) {    
+    await Util.assetContract(tokenIn).connect(investor).approve(Util.tc.address, amountIn);
+    
+    const numberOfShares = await Util.tc.connect(investor).callStatic.buyShares(systemId, tokenIn, amountIn);
+    await Util.tc.connect(investor).buyShares(systemId, tokenIn, amountIn);
+    Util.log({numberOfShares});
+    return numberOfShares;
   }
 
   async function placeOrder(systemId: number, tokenIn: string, tokenOut: string, amountIn: any) {    
@@ -118,20 +128,15 @@ describe("Traderchain", function () {
     expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, Util.system.address)).to.equal(true);
   });
   
-  it("An investor can buy system shares to initiate share issuance", async function () {
+  it("An investor can buy system shares with USDC to initiate share issuance", async function () {
     const systemId = 1;
     const tokenIn = USDC;
     const amountIn = Util.amountBN(100, 6);
     const sharePrice = await Util.tc.currentSystemSharePrice(systemId);
     const expectedShares = amountIn.div(sharePrice);
-    Util.log({amountIn, sharePrice: Util.amountFloat(sharePrice,6), expectedShares});
+    Util.log({tokenIn, amountIn, sharePrice: Util.amountFloat(sharePrice,6), expectedShares});
     
-    // Buy shares
-    await Util.usdc.connect(investor1).approve(Util.tc.address, amountIn);
-    
-    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, amountIn);
-    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, amountIn);
-    Util.log({numberOfShares});
+    const numberOfShares = await buyShares(investor1, systemId, tokenIn, amountIn);
     expect(numberOfShares).to.equal(expectedShares);
         
     const systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);
@@ -145,6 +150,39 @@ describe("Traderchain", function () {
     expect(investorShares).to.equal(numberOfShares);
   });
   
+  it("An investor can buy system shares with WETH", async function () {
+    const systemId = 1;
+    const tokenIn = WETH;    
+    const amountIn = parseEther('0.037');
+    const sharePrice = await Util.tc.currentSystemSharePrice(systemId);        
+    Util.log({tokenIn, amountIn, sharePrice: Util.amountFloat(sharePrice,6)});
+
+    let systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);    
+    let investorShares = await Util.system.balanceOf(investor1.address, systemId);
+    Util.log({systemUsdcAmount, investorShares: investorShares.toString()});
+    
+    const tokenInPrice = await Util.assetPrice(tokenIn);
+    const usdcAmount = Util.deductFee(amountIn.mul(tokenInPrice).div(BN18), 0.3); // -0.3% pool fee
+    
+    const expectedUsdcAmount = systemUsdcAmount.add(usdcAmount);
+    const expectedShares = usdcAmount.div(sharePrice);
+    const expectedInvestorShares = investorShares.add(expectedShares);
+    Util.log({tokenInPrice, usdcAmount, systemUsdcAmount, expectedUsdcAmount, expectedShares, expectedInvestorShares});
+    
+    const numberOfShares = await buyShares(investor1, systemId, tokenIn, amountIn);
+    expect(numberOfShares).to.equal(expectedShares);
+        
+    systemUsdcAmount = await Util.tc.getSystemAssetAmount(systemId, USDC);    
+    Util.log({systemUsdcAmount});
+    Util.expectApprox(systemUsdcAmount, expectedUsdcAmount, 2);
+
+    await checkVaultBalances(systemId);
+    
+    investorShares = await Util.system.balanceOf(investor1.address, systemId);
+    Util.log({investorShares: investorShares.toString()});
+    expect(investorShares).to.equal(expectedInvestorShares);
+  });
+
   it("A trader can place a buy order for his system", async function () {
     await placeBuyOrder();    
   });
@@ -179,8 +217,8 @@ describe("Traderchain", function () {
         expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(fundAmount);
       }
       else {          
-        const assetPrice = await Util.assetPrice(assetAddress);
-        const assetAmount = fundAmount.mul(Util.amountBN(1)).div(assetPrice).mul(BigNumber.from(997)).div(BigNumber.from(1000)); // -0.3% pool fee   
+        const assetPrice = await Util.assetPrice(assetAddress);        
+        const assetAmount = Util.deductFee(fundAmount.mul(BN18).div(assetPrice), 0.3); // -0.3% pool fee
         Util.log({assetPrice, assetAmount});
         expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(assetAmount);
       }
@@ -188,16 +226,12 @@ describe("Traderchain", function () {
     Util.log({expectedAssetAmounts});    
 
     let investorShares = await Util.system.balanceOf(investor1.address, systemId);
-    const expectedShares = amountIn.div(sharePrice);
+    const expectedShares = Util.deductFee(amountIn.div(sharePrice), 0.3/3); // -0.3% * 1/3 pool fee
     const expectedInvestorShares = investorShares.add(expectedShares);
     Util.log({expectedShares, expectedInvestorShares});
 
     // Buy more shares
-    await Util.usdc.connect(investor1).approve(Util.tc.address, amountIn);
-  
-    const numberOfShares = await Util.tc.connect(investor1).callStatic.buyShares(systemId, tokenIn, amountIn);
-    await Util.tc.connect(investor1).buyShares(systemId, tokenIn, amountIn);
-    Util.log({numberOfShares});
+    const numberOfShares = await buyShares(investor1, systemId, tokenIn, amountIn);
     expect(numberOfShares).to.equal(expectedShares);
   
     // Test expected values

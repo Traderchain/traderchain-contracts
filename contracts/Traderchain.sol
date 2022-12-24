@@ -96,18 +96,15 @@ contract Traderchain is
 
   /// Current system NAV in a base currency
   function currentSystemNAV(uint256 systemId) public view virtual returns (uint256) {
-    uint256 totalShares = tradingSystem.totalSupply(systemId);
-    if (totalShares == 0)  return 0;
+    uint256 assetCount = systemAssets.count(systemId);
+    if (assetCount == 0)  return 0;
     
     uint256 nav = 0;
-    uint256 assetCount = systemAssets.count(systemId);
-
     for (uint256 i = 0; i < assetCount; i++) {
       address assetAddress = systemAssets.getAddress(systemId, i);
       uint256 assetValue = getSystemAssetValue(systemId, assetAddress);
-      nav += assetValue;      
+      nav += assetValue;
     }
-
     return nav;
   }
   
@@ -161,11 +158,11 @@ contract Traderchain is
     uint256 assetCount = systemAssets.count(systemId);
 
     IERC20(tokenIn).transferFrom(investor, address(this), amountIn);
+    systemAssets.addAddress(systemId, tokenIn);
 
     if (nav == 0 || assetCount == 0) {
       IERC20(tokenIn).transfer(vault, amountIn);
-      _increaseSystemAssetAmount(systemId, tokenIn, amountIn);
-      systemAssets.addAddress(systemId, tokenIn);
+      _increaseSystemAssetAmount(systemId, tokenIn, amountIn);      
     }
     else {
       for (uint256 i = 0; i < assetCount; i++) {
@@ -181,12 +178,12 @@ contract Traderchain is
         }
         else {          
           uint256 assetAmount = _swapAsset(systemId, tokenIn, assetAddress, fundAmount);
-          _increaseSystemAssetAmount(systemId, assetAddress, assetAmount);
+          _increaseSystemAssetAmount(systemId, assetAddress, assetAmount);          
         }
       }
     }
-
-    numberOfShares = amountIn / sharePrice;
+    
+    numberOfShares = (currentSystemNAV(systemId) - nav) / sharePrice;
     tradingSystem.mintShares(systemId, investor, numberOfShares);    
   }
 
