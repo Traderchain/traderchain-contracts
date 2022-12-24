@@ -4,11 +4,9 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { expect } from "chai";
 import Util, { 
   ADDRESS_ZERO, USDC, WETH,
-  BigNumber, parseEther, formatUnits, formatEther  
+  BigNumber, parseEther, formatUnits, formatEther,
+  BN18, BN6,
 } from '../lib/util';
-
-const BN6 = Util.amountBN(1,6);
-const BN18 = Util.amountBN(1,18);
 
 describe("Traderchain", function () {  
   let signers: SignerWithAddress[];
@@ -238,10 +236,8 @@ describe("Traderchain", function () {
     for (const assetAddress of systemAssets) {
       const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
       Util.log({assetAddress, systemAssetAmount});
-      if (systemAssetAmount.gt(Util.amountBN(1,12))) {
-        const systemAssetAmountFloat = Util.amountFloat(systemAssetAmount,12).toFixed(0);
-        Util.log({systemAssetAmountFloat});
-        expect(systemAssetAmountFloat).to.equal(Util.amountFloat(expectedAssetAmounts[assetAddress],12).toFixed(0));
+      if (systemAssetAmount.gt(Util.amountBN(1,10))) {
+        Util.expectApprox(systemAssetAmount, expectedAssetAmounts[assetAddress], 10);
       }
       else {
         expect(systemAssetAmount).to.equal(expectedAssetAmounts[assetAddress]);

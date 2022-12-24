@@ -17,10 +17,14 @@ export const SWAP_POOL_WETH_USDC = '0x8ad599c3A0ff1De082011EFDDc58f1908eb6e6D8';
 
 export const BigNumber = ethers.BigNumber;
 export const parseEther = ethers.utils.parseEther;
+export const parseUnits = ethers.utils.parseUnits;
 export const formatUnits = ethers.utils.formatUnits;
 export const formatEther = ethers.utils.formatEther;
 
-export const ASSET_CONTRACTS: any = {};
+export const BN18 = parseUnits('1',18);
+export const BN6 = parseUnits('1',6);
+
+const ASSET_CONTRACTS: any = {};
 
 class Util {
   usdc: any;
@@ -129,10 +133,10 @@ class Util {
   }
 
   async assetPrice(assetAddress: string) {
-    if (assetAddress == USDC)  return this.amountBN(1);
+    if (assetAddress == USDC)  return BN18;
 
     const price = await this.tc.getPairPrice(USDC, assetAddress);
-    return this.amountBN(1).div(price);
+    return BN18.div(price);
   }
 
   async takeWhaleUSDC(toAddress: string, amount: BigNumberish) {
