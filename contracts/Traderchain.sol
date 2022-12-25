@@ -214,11 +214,11 @@ contract Traderchain is
         
       ISystemVault(vault).approve(assetAddress, assetAmount);
       IERC20(assetAddress).transferFrom(vault, address(this), assetAmount);
-      uint256 fundAmount = _swapAsset(systemId, assetAddress, tokenOut, assetAmount);
-      amountOut += fundAmount;
+      uint256 assetOutAmount = _swapAsset(systemId, assetAddress, tokenOut, assetAmount);
+      amountOut += assetOutAmount;
 
       _decreaseSystemAssetAmount(systemId, assetAddress, assetAmount);
-      _increaseSystemAssetAmount(systemId, tokenOut, fundAmount);      
+      _increaseSystemAssetAmount(systemId, tokenOut, assetOutAmount);      
     }
     require(amountOut > 0, "Traderchain: amountOut is empty");
     

@@ -21,8 +21,9 @@ export const parseUnits = ethers.utils.parseUnits;
 export const formatUnits = ethers.utils.formatUnits;
 export const formatEther = ethers.utils.formatEther;
 
-export const BN18 = parseUnits('1',18);
+export const BN0 = BigNumber.from(0);
 export const BN6 = parseUnits('1',6);
+export const BN18 = parseUnits('1',18);
 
 const ASSET_CONTRACTS: any = {};
 
