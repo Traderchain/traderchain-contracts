@@ -131,6 +131,7 @@ describe("Traderchain", function () {
     await checkVaultBalances(systemId);
   }
 
+  // TODO: refactor
   async function placeOrder(systemId: number, tokenIn: string, tokenOut: string, amountIn: any) {    
     console.log(`\t=== placeOrder()`);
     Util.log({systemId, tokenIn, tokenOut, amountIn});    
@@ -203,9 +204,6 @@ describe("Traderchain", function () {
     expect(vaultTraderchain).to.equal(Util.tc.address);
     expect(vaultTradingSystem).to.equal(Util.system.address);
     expect(vaultSystemId).to.equal(systemId);
-    
-    const DEFAULT_ADMIN_ROLE = await vaultContract.DEFAULT_ADMIN_ROLE();
-    expect(await vaultContract.hasRole(DEFAULT_ADMIN_ROLE, Util.system.address)).to.equal(true);
   });
   
   it("An investor can buy system shares with USDC to initiate share issuance", async function () {

@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-
 import './interfaces/IERC20.sol';
 
-contract SystemVault is
-  Context,
-  AccessControlEnumerable
+contract SystemVault
 {
   address public immutable traderchain;
   address public immutable tradingSystem;
@@ -18,22 +13,15 @@ contract SystemVault is
     traderchain = _traderchain;
     tradingSystem = _tradingSystem;
     systemId = _systemId;
-    
-    _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-  }
-
-  modifier onlyAdmin() {
-    require(hasRole(DEFAULT_ADMIN_ROLE, _msgSender()), "SystemVault: must be an admin");
-    _;
   }
 
   modifier onlyTraderchain() {
-    require(_msgSender() == traderchain, "SystemVault: must be called from Traderchain contract");
+    require(msg.sender == traderchain, "SystemVault: must be called from Traderchain contract");
     _;
   }
   
   function approve(address tokenAdress, uint256 amount) external 
-    onlyTraderchain 
+    onlyTraderchain
   {
     IERC20(tokenAdress).approve(traderchain, amount);
   }
