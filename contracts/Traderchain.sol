@@ -236,7 +236,8 @@ contract Traderchain is
     require(amountOut > 0, "Traderchain: amountOut is empty");
     
     ISystemVault(vault).approve(tokenOut, amountOut);
-    IERC20(tokenOut).transferFrom(vault, investor, amountOut);    
+    IERC20(tokenOut).transferFrom(vault, investor, amountOut);
+    
     _decreaseSystemAssetAmount(systemId, tokenOut, amountOut);
     systemAssets.addAddress(systemId, tokenOut);
                   
