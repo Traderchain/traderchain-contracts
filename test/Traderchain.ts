@@ -33,12 +33,13 @@ describe("Traderchain", function () {
     console.log(`\t=== checkAssetAmounts()`);
     for (const assetAddress in expectedAssetAmounts) {
       const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
-      Util.log({assetAddress, systemAssetAmount, expectedAssetAmount: expectedAssetAmounts[assetAddress]});
+      const expectedAssetAmount = expectedAssetAmounts[assetAddress];
+      Util.log({assetAddress, systemAssetAmount, expectedAssetAmount});
       if (systemAssetAmount.gt(Util.amountBN(1,10))) {
-        Util.expectApprox(systemAssetAmount, expectedAssetAmounts[assetAddress], 10);
+        Util.expectApprox(systemAssetAmount, expectedAssetAmount, 10);
       }
       else {
-        expect(systemAssetAmount).to.equal(expectedAssetAmounts[assetAddress]);
+        expect(systemAssetAmount).to.equal(expectedAssetAmount);
       }
     }
   }
@@ -287,8 +288,6 @@ describe("Traderchain", function () {
     const expectTotalShares = totalShares.sub(numberOfShares);
     Util.log({investorShares, numberOfShares, expectedInvestorShares, expectTotalShares});
     
-    await checkVaultBalances(systemId);
-
     // Calculate asset allocations to liquidate
     const assetCount = await Util.tc.getSystemAssetCount(systemId);
     const systemAssets = [USDC, WETH];
