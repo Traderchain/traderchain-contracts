@@ -278,8 +278,7 @@ contract Traderchain is
 
     IERC20(tokenIn).approve(address(swapRouter), amountIn);
 
-    ISwapRouter.ExactInputSingleParams memory params = 
-    ISwapRouter.ExactInputSingleParams({
+    ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
       tokenIn: tokenIn,
       tokenOut: tokenOut,
       fee: poolFee,

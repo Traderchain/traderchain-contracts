@@ -35,8 +35,8 @@ describe("Traderchain", function () {
       const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
       const expectedAssetAmount = expectedAssetAmounts[assetAddress];
       Util.log({assetAddress, systemAssetAmount, expectedAssetAmount});
-      if (systemAssetAmount.gt(Util.amountBN(1,10))) {
-        Util.expectApprox(systemAssetAmount, expectedAssetAmount, 10);
+      if (systemAssetAmount.gt(Util.amountBN(1,11))) {
+        Util.expectApprox(systemAssetAmount, expectedAssetAmount, 11);
       }
       else {
         expect(systemAssetAmount).to.equal(expectedAssetAmount);
@@ -64,7 +64,7 @@ describe("Traderchain", function () {
   
   async function testSellShares(investor: SignerWithAddress, systemId: number, tokenOut: string) {
     console.log(`\t=== testSellShares()`);    
-    const approxDecimals = tokenOut == USDC ? 1 : 10;
+    const approxDecimals = tokenOut == USDC ? 2 : 11;
 
     let nav = await Util.tc.currentSystemNAV(systemId);
     let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
@@ -168,21 +168,6 @@ describe("Traderchain", function () {
     await checkVaultBalances(systemId);
   }
   
-  async function placeBuyOrder() {
-    const systemId = 1;
-    const tokenIn = USDC;
-    const tokenOut = WETH;
-    const amountIn = Util.amountBN(50, 6); // 50 USDC
-    await placeOrder(systemId, tokenIn, tokenOut, amountIn);    
-  }
-  
-  async function placeSellOrder() {
-    const systemId = 1;
-    const tokenIn = WETH;
-    const tokenOut = USDC;
-    const amountIn = Util.amountBN(37, 15); // 0.037 WETH
-    await placeOrder(systemId, tokenIn, tokenOut, amountIn);        
-  }
   
   /***
   * Start testing
@@ -278,8 +263,12 @@ describe("Traderchain", function () {
     await checkVaultBalances(systemId);
   });
 
-  it("A trader can place a buy order for his system", async function () {
-    await placeBuyOrder();    
+  it("A trader can swap USDC for WETH for his own system", async function () {
+    const systemId = 1;
+    const tokenIn = USDC;
+    const tokenOut = WETH;
+    const amountIn = (await Util.tc.getSystemAssetAmount(systemId, tokenIn)).div(BigNumber.from(2));
+    await placeOrder(systemId, tokenIn, tokenOut, amountIn);    
   });
 
   it("An investor can buy more system shares", async function () {        
@@ -299,13 +288,14 @@ describe("Traderchain", function () {
     Util.log({assetCount, systemAssets});
     expect(assetCount).to.equal(systemAssets.length);
     
-    const expectedAssetAmounts: any = {};
+    let expectedAssetAmounts: any = {};
+    let swapFees = 0.0;
     for (const assetAddress of systemAssets) {
       expectedAssetAmounts[assetAddress] = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
 
       const assetValue = await Util.tc.getSystemAssetValue(systemId, assetAddress);
       const assetAllocation = BN6.mul(assetValue).div(nav);
-      const fundAmount = assetAllocation.mul(amountIn).div(BN6);
+      const fundAmount = assetAllocation.mul(amountIn).div(BN6);      
       Util.log({assetAddress, assetValue, assetAllocation: Util.amountFloat(assetAllocation,4), fundAmount});
       if (fundAmount.isZero())  continue;
       
@@ -317,12 +307,14 @@ describe("Traderchain", function () {
         const assetAmount = Util.deductFee(fundAmount.mul(BN18).div(assetPrice), 0.3); // -0.3% pool fee
         Util.log({assetPrice, assetAmount});
         expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(assetAmount);
+        
+        swapFees += 0.3 * Util.amountFloat(assetAllocation,6);
       }
     }
-    Util.log({expectedAssetAmounts});    
+    Util.log({expectedAssetAmounts, swapFees});    
 
     let investorShares = await Util.system.balanceOf(investor1.address, systemId);
-    const expectedShares = Util.deductFee(amountIn.div(sharePrice), 0.3/3); // -0.3% * 1/3 pool fee
+    const expectedShares = Util.deductFee(amountIn.div(sharePrice), swapFees);
     const expectedInvestorShares = investorShares.add(expectedShares);
     Util.log({expectedShares, expectedInvestorShares});
 
@@ -343,12 +335,20 @@ describe("Traderchain", function () {
     await checkVaultBalances(systemId);
   });
 
-  it("A trader can place another buy order", async function () {
-    await placeBuyOrder();    
+  it("A trader swaps USDC for WETH again", async function () {  
+    const systemId = 1;
+    const tokenIn = USDC;
+    const tokenOut = WETH;
+    const amountIn = (await Util.tc.getSystemAssetAmount(systemId, tokenIn)).div(BigNumber.from(2));
+    await placeOrder(systemId, tokenIn, tokenOut, amountIn);     
   });
   
-  it("A trader can place a sell order", async function () {
-    await placeSellOrder();    
+  it("A trader can swap WETH for USDC", async function () {
+    const systemId = 1;
+    const tokenIn = WETH;
+    const tokenOut = USDC;    
+    const amountIn = (await Util.tc.getSystemAssetAmount(systemId, tokenIn)).div(BigNumber.from(2));
+    await placeOrder(systemId, tokenIn, tokenOut, amountIn);
   });
 
   it("An investor can sell system shares and receive USDC", async function () {

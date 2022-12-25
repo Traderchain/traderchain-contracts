@@ -95,11 +95,14 @@ class Util {
   }
     
   deductFee(amount: any, fee: number) {
-    return amount.mul(BigNumber.from(1000 - 10*fee)).div(BigNumber.from(1000));
+    const d1 = 1000000;
+    const d2 = d1 / 100;
+    return amount.mul(BigNumber.from(d1 - Math.floor(d2*fee))).div(BigNumber.from(d1));
   }
 
   log(values: any) {
-    const _formatStr = (s: string) => {
+    const _formatStr = (s: any) => {
+      if (typeof s != 'string')  return s;
       return ASSET_NAMES[s] ? `${ASSET_NAMES[s]}_${s}` : s;
     };
 
@@ -114,7 +117,7 @@ class Util {
         for (const k in value) {
           this.log({ [`${key} ${_formatStr(k)}`]: value[k] });
         }
-        return;
+        continue;
       }
                   
       console.log(`\t${_formatStr(key)}: ${_formatStr(value)}`);
