@@ -8,7 +8,7 @@ interface ITraderchain {
 
   function removeSupportedAsset(address assetAddress) external;
 
-  function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256);
+  function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256 pairPrice, address token0);
 
   function getSystemAssetCount(uint256 systemId) external view returns (uint256);
 

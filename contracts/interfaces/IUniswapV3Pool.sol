@@ -2,6 +2,9 @@
 pragma solidity 0.8.17;
 
 interface IUniswapV3Pool {
+  function token0() external view returns (address);
+  function token1() external view returns (address);
+
   function slot0() external view
     returns (
         uint160 sqrtPriceX96,

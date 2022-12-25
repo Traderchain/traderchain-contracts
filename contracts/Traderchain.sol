@@ -72,11 +72,15 @@ contract Traderchain is
   function getSystemBaseCurency(uint256 systemId) public view virtual returns (address) {
     return systemBaseCurrencies[systemId];
   }
-
-  function getPairPrice(address tokenIn, address tokenOut) public view virtual returns (uint256) {
+  
+  function getPairPrice(address tokenIn, address tokenOut) public view virtual 
+    returns (uint256 pairPrice, address token0)
+  {
     IUniswapV3Pool pool = IUniswapV3Pool(swapFactory.getPool(tokenIn, tokenOut, poolFee));
+    token0 = pool.token0();    
+
     (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
-    return (uint256(sqrtPriceX96)**2) / (uint256(2)**192);    
+    pairPrice = (uint256(sqrtPriceX96)**2) / (uint256(2)**192);
   }
 
   function getSystemAssetCount(uint256 systemId) public view virtual returns (uint256) {
@@ -90,8 +94,11 @@ contract Traderchain is
   /// System asset value in a base currency
   function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
     address baseCurrency = getSystemBaseCurency(systemId);
-    uint256 assetPrice = assetAddress != baseCurrency ? getPairPrice(baseCurrency, assetAddress) : 1;
-    return systemAssetAmounts[systemId][assetAddress] / assetPrice;    
+    uint256 assetAmount = systemAssetAmounts[systemId][assetAddress];
+    if (assetAddress == baseCurrency)  return assetAmount;
+
+    (uint256 pairPrice, address token0) = getPairPrice(baseCurrency, assetAddress);
+    return (baseCurrency == token0) ? (assetAmount / pairPrice) : (assetAmount * pairPrice);
   }
 
   /// Current system NAV in a base currency
@@ -201,10 +208,16 @@ contract Traderchain is
     uint256 totalShares = totalSystemShares(systemId);
     uint256 assetCount = systemAssets.count(systemId);
 
-    amountOut = 0;
+    uint256[] memory assetAmounts = new uint256[](assetCount);
     for (uint256 i = 0; i < assetCount; i++) {
       address assetAddress = systemAssets.getAddress(systemId, i);
-      uint256 assetAmount = systemAssetAmounts[systemId][assetAddress] * numberOfShares / totalShares;
+      assetAmounts[i] = systemAssetAmounts[systemId][assetAddress] * numberOfShares / totalShares;
+    }
+
+    amountOut = 0;    
+    for (uint256 i = 0; i < assetCount; i++) {
+      address assetAddress = systemAssets.getAddress(systemId, i);
+      uint256 assetAmount = assetAmounts[i];
       if (assetAmount == 0)  continue;
 
       if (assetAddress == tokenOut) {
@@ -214,7 +227,7 @@ contract Traderchain is
         
       ISystemVault(vault).approve(assetAddress, assetAmount);
       IERC20(assetAddress).transferFrom(vault, address(this), assetAmount);
-      uint256 assetOutAmount = _swapAsset(systemId, assetAddress, tokenOut, assetAmount);
+      uint256 assetOutAmount = _swapAsset(systemId, assetAddress, tokenOut, assetAmount);         
       amountOut += assetOutAmount;
 
       _decreaseSystemAssetAmount(systemId, assetAddress, assetAmount);

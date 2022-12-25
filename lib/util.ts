@@ -124,7 +124,7 @@ class Util {
   expectApprox(a: BigNumberish, b: BigNumberish, decimals = 18) {
     console.log('\tUtil.expectApprox()');
     const af = this.amountFloat(a, decimals).toFixed(0);
-    const bf = this.amountFloat(a, decimals).toFixed(0);
+    const bf = this.amountFloat(b, decimals).toFixed(0);
     this.log({af, bf});
     expect(af).to.equal(bf);
   }
@@ -133,11 +133,11 @@ class Util {
     return ASSET_CONTRACTS[assetAddress];
   }
 
-  async assetPrice(assetAddress: string) {
-    if (assetAddress == USDC)  return BN18;
+  async assetPrice(assetAddress: string, baseCurrency = USDC) {
+    if (assetAddress == baseCurrency)  return BN18;
 
-    const price = await this.tc.getPairPrice(USDC, assetAddress);
-    return BN18.div(price);
+    const [pairPrice, token0] = await this.tc.getPairPrice(baseCurrency, assetAddress);
+    return (baseCurrency == token0) ? BN18.div(pairPrice) : BN18.mul(pairPrice);
   }
 
   async takeWhaleUSDC(toAddress: string, amount: BigNumberish) {

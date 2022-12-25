@@ -54,6 +54,83 @@ describe("Traderchain", function () {
     return numberOfShares;
   }
 
+  async function sellShares(investor: SignerWithAddress, systemId: number, numberOfShares: BigNumberish, tokenOut: string) {
+    console.log(`\t=== sellShares()`);
+    const amountOut = await Util.tc.connect(investor).callStatic.sellShares(systemId, numberOfShares, tokenOut);
+    await Util.tc.connect(investor1).sellShares(systemId, numberOfShares, tokenOut);
+    Util.log({amountOut});
+    return amountOut;
+  }
+  
+  async function testSellShares(investor: SignerWithAddress, systemId: number, tokenOut: string) {
+    console.log(`\t=== testSellShares()`);    
+    const approxDecimals = tokenOut == USDC ? 1 : 10;
+
+    let nav = await Util.tc.currentSystemNAV(systemId);
+    let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
+    let totalShares = await Util.tc.totalSystemShares(systemId);
+    Util.log({systemId, tokenOut, nav, sharePrice: Util.amountFloat(sharePrice,6), totalShares});
+
+    let investorShares = await Util.tc.getInvestorShares(systemId, investor.address);
+    const numberOfShares = investorShares.div(BigNumber.from(2));    
+    const expectedInvestorShares = investorShares.sub(numberOfShares);    
+    const expectTotalShares = totalShares.sub(numberOfShares);
+    Util.log({investorShares, numberOfShares, expectedInvestorShares, expectTotalShares});
+    
+    // Calculate asset allocations to liquidate
+    const assetCount = await Util.tc.getSystemAssetCount(systemId);
+    const systemAssets = [USDC, WETH];
+    Util.log({assetCount, systemAssets});
+    expect(assetCount).to.equal(systemAssets.length);
+    
+    let expectedAmountOut = BN0;
+    let expectedAssetAmounts: any = {};
+    for (const assetAddress of systemAssets) {
+      const systemAssetAmount = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
+      expectedAssetAmounts[assetAddress] = systemAssetAmount;
+
+      const assetAmount = systemAssetAmount.mul(numberOfShares).div(totalShares);
+      Util.log({assetAddress, assetAmount});
+      if (assetAmount.isZero())  continue;
+
+      expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].sub(assetAmount);      
+      if (assetAddress == tokenOut) {
+        expectedAmountOut = expectedAmountOut.add(assetAmount);        
+        continue;
+      }
+
+      const assetPrice = await Util.assetPrice(assetAddress, tokenOut);
+      const assetOutAmount = Util.deductFee(assetAmount.mul(assetPrice).div(BN18), 0.3); // -0.3% pool fee
+      Util.log({assetPrice: assetPrice.toString(), assetOutAmount});
+      expectedAmountOut = expectedAmountOut.add(assetOutAmount);      
+    }
+    Util.log({expectedAmountOut, expectedAssetAmounts});
+
+    let investorTokenOutAmount = await Util.assetContract(tokenOut).balanceOf(investor.address);
+    const expectedInvestorTokenOutAmount = investorTokenOutAmount.add(expectedAmountOut);
+    Util.log({investorTokenOutAmount, expectedInvestorTokenOutAmount});
+
+    // Sell shares
+    const amountOut = await sellShares(investor, systemId, numberOfShares, tokenOut);
+    Util.expectApprox(amountOut, expectedAmountOut, approxDecimals);
+                
+    // Expect values
+    investorShares = await Util.tc.getInvestorShares(systemId, investor.address);
+    investorTokenOutAmount = await Util.assetContract(tokenOut).balanceOf(investor.address);
+    Util.log({investorShares, investorTokenOutAmount});
+    expect(investorShares).to.equal(expectedInvestorShares);
+    Util.expectApprox(investorTokenOutAmount, expectedInvestorTokenOutAmount, approxDecimals);
+
+    nav = await Util.tc.currentSystemNAV(systemId);
+    sharePrice = await Util.tc.currentSystemSharePrice(systemId);
+    totalShares = await Util.tc.totalSystemShares(systemId);
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), totalShares});
+    expect(totalShares).to.equal(expectTotalShares);
+
+    await checkAssetAmounts(systemId, expectedAssetAmounts);
+    await checkVaultBalances(systemId);
+  }
+
   async function placeOrder(systemId: number, tokenIn: string, tokenOut: string, amountIn: any) {    
     console.log(`\t=== placeOrder()`);
     Util.log({systemId, tokenIn, tokenOut, amountIn});    
@@ -277,70 +354,13 @@ describe("Traderchain", function () {
   it("An investor can sell system shares and receive USDC", async function () {
     const systemId = 1;
     const tokenOut = USDC;
-    let nav = await Util.tc.currentSystemNAV(systemId);
-    let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
-    let totalShares = await Util.tc.totalSystemShares(systemId);
-    Util.log({systemId, tokenOut, nav, sharePrice: Util.amountFloat(sharePrice,6), totalShares});
+    await testSellShares(investor1, systemId, tokenOut);
+  });
 
-    let investorShares = await Util.tc.getInvestorShares(systemId, investor1.address);
-    const numberOfShares = investorShares.div(BigNumber.from(2));    
-    const expectedInvestorShares = investorShares.sub(numberOfShares);    
-    const expectTotalShares = totalShares.sub(numberOfShares);
-    Util.log({investorShares, numberOfShares, expectedInvestorShares, expectTotalShares});
-    
-    // Calculate asset allocations to liquidate
-    const assetCount = await Util.tc.getSystemAssetCount(systemId);
-    const systemAssets = [USDC, WETH];
-    Util.log({assetCount, systemAssets});
-    expect(assetCount).to.equal(systemAssets.length);
-    
-    let expectedAmountOut = BN0;
-    let expectedAssetAmounts: any = {};
-    for (const assetAddress of systemAssets) {
-      expectedAssetAmounts[assetAddress] = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
-
-      const assetAmount = (await Util.tc.getSystemAssetAmount(systemId, assetAddress)).mul(numberOfShares).div(totalShares);
-      Util.log({assetAddress, assetAmount});
-      if (assetAmount.isZero())  continue;
-
-      expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].sub(assetAmount);      
-      if (assetAddress == tokenOut) {
-        expectedAmountOut = expectedAmountOut.add(assetAmount);        
-        continue;
-      }
-
-      const assetPrice = await Util.assetPrice(assetAddress);
-      const assetOutAmount = Util.deductFee(assetAmount.mul(assetPrice).div(BN18), 0.3); // -0.3% pool fee
-      Util.log({assetPrice, assetOutAmount});
-      expectedAmountOut = expectedAmountOut.add(assetOutAmount);      
-    }
-    Util.log({expectedAmountOut, expectedAssetAmounts});
-
-    let investorTokenOutAmount = await Util.assetContract(tokenOut).balanceOf(investor1.address);
-    const expectedInvestorTokenOutAmount = investorTokenOutAmount.add(expectedAmountOut);
-    Util.log({investorTokenOutAmount, expectedInvestorTokenOutAmount});
-
-    // Sell shares
-    const amountOut = await Util.tc.connect(investor1).callStatic.sellShares(systemId, numberOfShares, tokenOut);
-    await Util.tc.connect(investor1).sellShares(systemId, numberOfShares, tokenOut);
-    Util.log({amountOut});    
-    Util.expectApprox(amountOut, expectedAmountOut, 1);    
-                
-    // Expect values
-    investorShares = await Util.tc.getInvestorShares(systemId, investor1.address);
-    investorTokenOutAmount = await Util.assetContract(tokenOut).balanceOf(investor1.address);
-    Util.log({investorShares, investorTokenOutAmount});
-    expect(investorShares).to.equal(expectedInvestorShares);
-    Util.expectApprox(investorTokenOutAmount, expectedInvestorTokenOutAmount, 1);
-
-    nav = await Util.tc.currentSystemNAV(systemId);
-    sharePrice = await Util.tc.currentSystemSharePrice(systemId);
-    totalShares = await Util.tc.totalSystemShares(systemId);
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6), totalShares});
-    expect(totalShares).to.equal(expectTotalShares);
-
-    await checkAssetAmounts(systemId, expectedAssetAmounts);
-    await checkVaultBalances(systemId);
+  it("An investor can sell system shares and receive WETH", async function () {
+    const systemId = 1;
+    const tokenOut = WETH;
+    await testSellShares(investor1, systemId, tokenOut);
   });
         
 });
