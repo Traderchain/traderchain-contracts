@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
-import "./libraries/EnumerableMultipleMap.sol";
 import "./interfaces/ITradingSystem.sol";
 import "./interfaces/ISystemVault.sol";
+import "./libraries/EnumerableMultipleMap.sol";
 import "./SystemVault.sol";
 
 contract TradingSystem is
