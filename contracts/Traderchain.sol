@@ -10,11 +10,13 @@ import './interfaces/IERC20.sol';
 import './interfaces/ISwapRouter.sol';
 import './interfaces/IUniswapV3Factory.sol';
 import './interfaces/IUniswapV3Pool.sol';
+import "./interfaces/ITraderchain.sol";
 import "./interfaces/ITradingSystem.sol";
 import "./interfaces/ISystemVault.sol";
 
 contract Traderchain is
   Context,
+  ITraderchain,
   AccessControlEnumerable
 {  
   uint24 public constant poolFee = 3000; // TODO: set by a pool

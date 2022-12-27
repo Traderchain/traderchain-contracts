@@ -2,8 +2,9 @@
 pragma solidity 0.8.17;
 
 import './interfaces/IERC20.sol';
+import "./interfaces/ISystemVault.sol";
 
-contract SystemVault
+contract SystemVault is ISystemVault
 {
   address public immutable traderchain;
   address public immutable tradingSystem;

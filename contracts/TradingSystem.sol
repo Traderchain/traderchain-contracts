@@ -7,11 +7,13 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155Supply.sol";
 
 import "./libraries/EnumerableMultipleMap.sol";
+import "./interfaces/ITradingSystem.sol";
 import "./interfaces/ISystemVault.sol";
 import "./SystemVault.sol";
 
 contract TradingSystem is
   Context,
+  ITradingSystem,
   AccessControlEnumerable,
   ERC1155Supply
 {
@@ -51,6 +53,14 @@ contract TradingSystem is
     _;
   }
   
+  function totalSupply(uint256 id) public view virtual override(ITradingSystem, ERC1155Supply) returns (uint256) {
+    return ERC1155Supply.totalSupply(id);
+  }
+
+  function exists(uint256 id) public view virtual override(ITradingSystem, ERC1155Supply) returns (bool) {
+    return ERC1155Supply.exists(id);
+  }
+
   function currentSystemId() public view virtual returns (uint256) {
     return _systemIdTracker.current();
   }
@@ -104,7 +114,7 @@ contract TradingSystem is
     _burn(investor, systemId, shares);
   }
       
-  function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, ERC1155) returns (bool) {
+  function supportsInterface(bytes4 interfaceId) public view virtual override(AccessControlEnumerable, IERC165, ERC1155) returns (bool) {
     return super.supportsInterface(interfaceId);
   }
   
