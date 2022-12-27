@@ -53,12 +53,12 @@ contract TradingSystem is
     _;
   }
   
-  function totalSupply(uint256 id) public view virtual override(ITradingSystem, ERC1155Supply) returns (uint256) {
-    return ERC1155Supply.totalSupply(id);
+  function totalSupply(uint256 systemId) public view virtual override(ITradingSystem, ERC1155Supply) returns (uint256) {
+    return ERC1155Supply.totalSupply(systemId);
   }
 
-  function exists(uint256 id) public view virtual override(ITradingSystem, ERC1155Supply) returns (bool) {
-    return ERC1155Supply.exists(id);
+  function exists(uint256 systemId) public view virtual override(ITradingSystem, ERC1155Supply) returns (bool) {
+    return ERC1155Supply.exists(systemId);
   }
 
   function currentSystemId() public view virtual returns (uint256) {

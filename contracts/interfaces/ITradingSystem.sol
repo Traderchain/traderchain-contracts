@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 interface ITradingSystem is IERC1155 {
   /// ERC1155Supply interfaces
-  function totalSupply(uint256 id) external view returns (uint256);
+  function totalSupply(uint256 systemId) external view returns (uint256);
   
-  function exists(uint256 id) external view returns (bool);
+  function exists(uint256 systemId) external view returns (bool);
 
   /// TradingSystem interfaces
   function currentSystemId() external view returns (uint256);
