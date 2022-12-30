@@ -10,7 +10,7 @@ export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const INIT_SUPPORT_FUNDS = [USDC, WETH];
 export const INIT_SUPPORT_ASSETS = [
-  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 3000} ] },
+  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 500} ] },
   { assetAddress: WETH, pools: [] },
 ];
 export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH' };
@@ -75,7 +75,7 @@ class Util {
     for (const fund of INIT_SUPPORT_FUNDS) { 
       await this.tc.addSupportedFund(fund); 
     }
-    
+
     for (const asset of INIT_SUPPORT_ASSETS) { 
       await this.tc.addSupportedAsset(asset.assetAddress, asset.pools);
 
@@ -158,6 +158,11 @@ class Util {
 
     const [pairPrice, token0] = await this.tc.getPairPrice(baseCurrency, assetAddress);
     return (baseCurrency == token0) ? BN18.div(pairPrice) : BN18.mul(pairPrice);
+  }
+
+  async poolFee(tokenIn: string, tokenOut: string) {
+    const fee = await this.tc.getPoolFee(tokenIn, tokenOut);
+    return this.amountFloat(fee, 4);
   }
 
   async takeWhaleUSDC(toAddress: string, amount: BigNumberish) {

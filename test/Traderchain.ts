@@ -100,8 +100,9 @@ describe("Traderchain", function () {
       }
 
       const assetPrice = await Util.assetPrice(assetAddress, tokenOut);
-      const assetOutAmount = Util.deductFee(assetAmount.mul(assetPrice).div(BN18), 0.3); // -0.3% pool fee
-      Util.log({assetPrice: assetPrice.toString(), assetOutAmount});
+      const poolFee = await Util.poolFee(assetAddress, tokenOut);
+      const assetOutAmount = Util.deductFee(assetAmount.mul(assetPrice).div(BN18), poolFee);
+      Util.log({assetPrice: assetPrice.toString(), poolFee, assetOutAmount});
       expectedAmountOut = expectedAmountOut.add(assetOutAmount);      
     }
     Util.log({expectedAmountOut, expectedAssetAmounts});
@@ -240,12 +241,14 @@ describe("Traderchain", function () {
     Util.log({systemUsdcAmount, investorShares: investorShares.toString()});
     
     const tokenInPrice = await Util.assetPrice(tokenIn);
-    const usdcAmount = Util.deductFee(amountIn.mul(tokenInPrice).div(BN18), 0.3); // -0.3% pool fee
-    
+    const poolFee = await Util.poolFee(tokenIn, USDC);
+    const usdcAmount = Util.deductFee(amountIn.mul(tokenInPrice).div(BN18), poolFee);
+    Util.log({tokenInPrice, poolFee, usdcAmount});
+
     const expectedUsdcAmount = systemUsdcAmount.add(usdcAmount);
     const expectedShares = usdcAmount.div(sharePrice);
     const expectedInvestorShares = investorShares.add(expectedShares);
-    Util.log({tokenInPrice, usdcAmount, systemUsdcAmount, expectedUsdcAmount, expectedShares, expectedInvestorShares});
+    Util.log({expectedUsdcAmount, expectedShares, expectedInvestorShares});
     
     const numberOfShares = await buyShares(investor1, systemId, tokenIn, amountIn);
     expect(numberOfShares).to.equal(expectedShares);
@@ -276,9 +279,10 @@ describe("Traderchain", function () {
     const vault = await Util.system.getSystemVault(systemId);    
     Util.log({systemId, amountIn});
         
+    const baseCurrency = await Util.tc.getSystemBaseCurrency(systemId);
     let nav = await Util.tc.currentSystemNAV(systemId);
     let sharePrice = await Util.tc.currentSystemSharePrice(systemId);
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
+    Util.log({baseCurrency, nav, sharePrice: Util.amountFloat(sharePrice,6)});
           
     // Calculate asset allocations
     const assetCount = await Util.tc.getSystemAssetCount(systemId);
@@ -287,7 +291,7 @@ describe("Traderchain", function () {
     expect(assetCount).to.equal(systemAssets.length);
     
     let expectedAssetAmounts: any = {};
-    let swapFees = 0.0;
+    let expectedNAV = nav;
     for (const assetAddress of systemAssets) {
       expectedAssetAmounts[assetAddress] = await Util.tc.getSystemAssetAmount(systemId, assetAddress);
 
@@ -299,20 +303,23 @@ describe("Traderchain", function () {
       
       if (assetAddress == tokenIn) {
         expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(fundAmount);
+
+        expectedNAV = expectedNAV.add(fundAmount);
       }
       else {          
-        const assetPrice = await Util.assetPrice(assetAddress);        
-        const assetAmount = Util.deductFee(fundAmount.mul(BN18).div(assetPrice), 0.3); // -0.3% pool fee
-        Util.log({assetPrice, assetAmount});
+        const assetPrice = await Util.assetPrice(assetAddress);
+        const poolFee = await Util.poolFee(tokenIn, assetAddress);
+        const assetAmount = Util.deductFee(fundAmount.mul(BN18).div(assetPrice), poolFee);
+        Util.log({assetPrice, poolFee, assetAmount});
         expectedAssetAmounts[assetAddress] = expectedAssetAmounts[assetAddress].add(assetAmount);
-        
-        swapFees += 0.3 * Util.amountFloat(assetAllocation,6);
+                
+        expectedNAV = expectedNAV.add(Util.deductFee(fundAmount, poolFee));
       }
     }
-    Util.log({expectedAssetAmounts, swapFees});    
+    Util.log({expectedAssetAmounts, expectedNAV});
 
-    let investorShares = await Util.system.balanceOf(investor1.address, systemId);
-    const expectedShares = Util.deductFee(amountIn.div(sharePrice), swapFees);
+    let investorShares = await Util.system.balanceOf(investor1.address, systemId);    
+    const expectedShares = expectedNAV.sub(nav).div(sharePrice);
     const expectedInvestorShares = investorShares.add(expectedShares);
     Util.log({expectedShares, expectedInvestorShares});
 
@@ -327,7 +334,8 @@ describe("Traderchain", function () {
     
     nav = await Util.tc.currentSystemNAV(systemId);
     sharePrice = await Util.tc.currentSystemSharePrice(systemId);
-    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});
+    Util.log({nav, sharePrice: Util.amountFloat(sharePrice,6)});    
+    Util.expectApprox(nav, expectedNAV, 3);
 
     await checkAssetAmounts(systemId, expectedAssetAmounts);
     await checkVaultBalances(systemId);

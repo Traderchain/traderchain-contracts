@@ -105,7 +105,7 @@ contract Traderchain is
     poolFees[tokenOut][tokenIn] = fee;
   }
 
-  function getSystemBaseCurency(uint256 systemId) public view virtual returns (address) {
+  function getSystemBaseCurrency(uint256 systemId) public view virtual returns (address) {
     return systemBaseCurrencies[systemId];
   }
   
@@ -130,7 +130,7 @@ contract Traderchain is
 
   /// System asset value in a base currency
   function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
-    address baseCurrency = getSystemBaseCurency(systemId);
+    address baseCurrency = getSystemBaseCurrency(systemId);
     uint256 assetAmount = systemAssetAmounts[systemId][assetAddress];
     if (assetAddress == baseCurrency)  return assetAmount;
 
@@ -158,7 +158,7 @@ contract Traderchain is
 
     // Initial share price
     if (totalShares == 0) {
-      address baseCurrency = getSystemBaseCurency(systemId);
+      address baseCurrency = getSystemBaseCurrency(systemId);
       uint8 decimals = IERC20(baseCurrency).decimals();      
       return 10**(decimals-3); // TODO: review init price for a potential case of switching the base currency
     }
@@ -287,7 +287,7 @@ contract Traderchain is
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
   { 
-    require(supportedFunds.contains(tokenIn) || supportedFunds.contains(tokenOut), "Traderchain: swapping pair is not supported");
+    require(supportedFunds.contains(tokenIn) || supportedFunds.contains(tokenOut), "Traderchain: tokenIn or tokenOut is not supported as a base currency");
     require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
     require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
     require(tokenIn != tokenOut, "Traderchain: tokenIn and tokenOut must be different");

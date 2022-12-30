@@ -22,7 +22,7 @@ interface ITraderchain {
 
   function setPoolFee(address tokenIn, address tokenOut, uint24 fee) external;
 
-  function getSystemBaseCurency(uint256 systemId) external view returns (address);
+  function getSystemBaseCurrency(uint256 systemId) external view returns (address);
 
   function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256 pairPrice, address token0);
 
