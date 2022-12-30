@@ -6,14 +6,18 @@ export const ADDRESS_ZERO = '0x0000000000000000000000000000000000000000';
 
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'; 
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+export const UNI = '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984';
+
 export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+
 export const INIT_SUPPORT_FUNDS = [USDC, WETH];
 export const INIT_SUPPORT_ASSETS = [
   { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 500} ] },
   { assetAddress: WETH, pools: [] },
+  { assetAddress: UNI, pools: [ {tokenIn: WETH, tokenOut: UNI, fee: 3000}, {tokenIn: USDC, tokenOut: UNI, fee: 3000} ] },  
 ];
-export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH' };
+export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH', [UNI]: 'UNI' };
 
 export const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
 export const SWAP_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
@@ -77,15 +81,21 @@ class Util {
     }
 
     for (const asset of INIT_SUPPORT_ASSETS) { 
-      await this.tc.addSupportedAsset(asset.assetAddress, asset.pools);
+      const {assetAddress, pools} = asset;
+      this.log({assetAddress});
 
-      for (const pool of asset.pools) {
+      await this.tc.addSupportedAsset(assetAddress, pools);
+
+      const assetPrice = await this.assetPrice(assetAddress);
+      this.log({assetPrice});
+
+      for (const pool of pools) {
         const poolFee1 = await this.tc.getPoolFee(pool.tokenIn, pool.tokenOut);
         const poolFee2 = await this.tc.getPoolFee(pool.tokenOut, pool.tokenIn);
         this.log({pool, poolFee1, poolFee2});
         expect(poolFee1).to.equal(pool.fee);
         expect(poolFee2).to.equal(pool.fee);
-      }
+      }      
     }
         
     const usdcAmount = this.amountBN(1000, 6);
@@ -153,11 +163,8 @@ class Util {
     return ASSET_CONTRACTS[assetAddress];
   }
 
-  async assetPrice(assetAddress: string, baseCurrency = USDC) {
-    if (assetAddress == baseCurrency)  return BN18;
-
-    const [pairPrice, token0] = await this.tc.getPairPrice(baseCurrency, assetAddress);
-    return (baseCurrency == token0) ? BN18.div(pairPrice) : BN18.mul(pairPrice);
+  async assetPrice(assetAddress: string, baseCurrency = USDC) {    
+    return await this.tc.getAssetValue(baseCurrency, assetAddress, BN18);
   }
 
   async poolFee(tokenIn: string, tokenOut: string) {

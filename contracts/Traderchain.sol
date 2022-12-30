@@ -107,17 +107,32 @@ contract Traderchain is
 
   function getSystemBaseCurrency(uint256 systemId) public view virtual returns (address) {
     return systemBaseCurrencies[systemId];
-  }
-  
+  }  
+
   function getPairPrice(address tokenIn, address tokenOut) public view virtual 
-    returns (uint256 pairPrice, address token0)
+    returns (uint256 sqrtPrice, address token0)
   {
     uint24 poolFee = getPoolFee(tokenIn, tokenOut);
     IUniswapV3Pool pool = IUniswapV3Pool(swapFactory.getPool(tokenIn, tokenOut, poolFee));
     token0 = pool.token0();
 
     (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
-    pairPrice = (uint256(sqrtPriceX96)**2) / (uint256(2)**192);
+    sqrtPrice = sqrtPriceX96;
+  }
+
+  /// Asset value in a base currency
+  function getAssetValue(address baseCurrency, address assetAddress, uint256 assetAmount) public view virtual returns (uint256) {    
+    if (baseCurrency == assetAddress)  return assetAmount;
+
+    (uint256 sqrtPrice, address token0) = getPairPrice(baseCurrency, assetAddress);
+    uint256 price = sqrtPrice**2;
+    uint256 Q192 = 2**192;
+    if (baseCurrency == token0) {
+      return price > Q192 ? assetAmount / (price / Q192) : assetAmount * (Q192 / price);
+    }
+    else {
+      return price > Q192 ? assetAmount * (price / Q192) : assetAmount / (Q192 / price);
+    }
   }
 
   function getSystemAssetCount(uint256 systemId) public view virtual returns (uint256) {
@@ -131,11 +146,8 @@ contract Traderchain is
   /// System asset value in a base currency
   function getSystemAssetValue(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
     address baseCurrency = getSystemBaseCurrency(systemId);
-    uint256 assetAmount = systemAssetAmounts[systemId][assetAddress];
-    if (assetAddress == baseCurrency)  return assetAmount;
-
-    (uint256 pairPrice, address token0) = getPairPrice(baseCurrency, assetAddress);
-    return (baseCurrency == token0) ? (assetAmount / pairPrice) : (assetAmount * pairPrice);
+    uint256 assetAmount = getSystemAssetAmount(systemId, assetAddress);
+    return getAssetValue(baseCurrency, assetAddress, assetAmount);
   }
 
   /// Current system NAV in a base currency
@@ -287,7 +299,7 @@ contract Traderchain is
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
   { 
-    require(supportedFunds.contains(tokenIn) || supportedFunds.contains(tokenOut), "Traderchain: tokenIn or tokenOut is not supported as a base currency");
+    require(supportedFunds.contains(tokenIn) || supportedFunds.contains(tokenOut), "Traderchain: tokenIn or tokenOut should be a supported base currency");
     require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
     require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
     require(tokenIn != tokenOut, "Traderchain: tokenIn and tokenOut must be different");
