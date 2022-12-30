@@ -13,7 +13,7 @@ export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 
 export const INIT_SUPPORT_FUNDS = [USDC, WETH];
 export const INIT_SUPPORT_ASSETS = [
-  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 3000} ] },
+  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 500} ] },
   { assetAddress: WETH, pools: [] },
   { assetAddress: UNI, pools: [ {tokenIn: WETH, tokenOut: UNI, fee: 3000}, {tokenIn: USDC, tokenOut: UNI, fee: 3000} ] },  
 ];
