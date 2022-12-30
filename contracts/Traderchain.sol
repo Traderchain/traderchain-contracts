@@ -18,22 +18,27 @@ contract Traderchain is
   Context,
   ITraderchain,
   AccessControlEnumerable
-{  
-  uint24 public constant poolFee = 3000; // TODO: set by a pool
+{ 
+  using EnumerableSet for EnumerableSet.AddressSet;
+  using EnumerableMultipleMap for EnumerableMultipleMap.UintToAddressesMap;
   
   ISwapRouter private swapRouter;  
   IUniswapV3Factory private swapFactory;
   ITradingSystem private tradingSystem;
 
-  // Supported assets
-  using EnumerableSet for EnumerableSet.AddressSet;
+  // Supported funds (base currencies)
+  EnumerableSet.AddressSet private supportedFunds;
+
+  // Supported assets  
   EnumerableSet.AddressSet private supportedAssets;
+
+  // Pool fees
+  mapping(address => mapping(address => uint24)) private poolFees; // tokenIn => tokenOut => poolFee
 
   // System base currency
   mapping(uint256 => address) private systemBaseCurrencies;
 
-  // Tracking systems assets
-  using EnumerableMultipleMap for EnumerableMultipleMap.UintToAddressesMap;
+  // Tracking systems assets  
   EnumerableMultipleMap.UintToAddressesMap private systemAssets;
 
   // Tracking system asset amounts
@@ -63,12 +68,41 @@ contract Traderchain is
     tradingSystem = ITradingSystem(_tradingSystem);
   }
 
-  function addSupportedAsset(address assetAddress) external onlyAdmin {
+  function addSupportedFund(address fundAddress) external onlyAdmin {
+    supportedFunds.add(fundAddress);
+  }
+
+  function removeSupportedFund(address fundAddress) external onlyAdmin {
+    supportedFunds.remove(fundAddress);
+  }
+
+  function addSupportedAsset(address assetAddress, Pool[] memory pools) external onlyAdmin {
     supportedAssets.add(assetAddress);
+
+    for (uint256 i = 0; i < pools.length; i++) {
+      Pool memory pool = pools[i];
+      poolFees[pool.tokenIn][assetAddress] = pool.fee;
+      poolFees[assetAddress][pool.tokenIn] = pool.fee;
+    }
   }
 
   function removeSupportedAsset(address assetAddress) external onlyAdmin {
     supportedAssets.remove(assetAddress);
+
+    for (uint256 i = 0; i < supportedFunds.length(); i++) {
+      address fundAddress = supportedFunds.at(i);
+      delete poolFees[fundAddress][assetAddress];
+      delete poolFees[assetAddress][fundAddress];
+    }
+  }
+
+  function getPoolFee(address tokenIn, address tokenOut) public view virtual returns (uint24) {
+    return poolFees[tokenIn][tokenOut];
+  }
+
+  function setPoolFee(address tokenIn, address tokenOut, uint24 fee) external onlyAdmin {
+    poolFees[tokenIn][tokenOut] = fee;
+    poolFees[tokenOut][tokenIn] = fee;
   }
 
   function getSystemBaseCurency(uint256 systemId) public view virtual returns (address) {
@@ -78,8 +112,9 @@ contract Traderchain is
   function getPairPrice(address tokenIn, address tokenOut) public view virtual 
     returns (uint256 pairPrice, address token0)
   {
+    uint24 poolFee = getPoolFee(tokenIn, tokenOut);
     IUniswapV3Pool pool = IUniswapV3Pool(swapFactory.getPool(tokenIn, tokenOut, poolFee));
-    token0 = pool.token0();    
+    token0 = pool.token0();
 
     (uint160 sqrtPriceX96,,,,,,) = pool.slot0();
     pairPrice = (uint256(sqrtPriceX96)**2) / (uint256(2)**192);
@@ -143,8 +178,9 @@ contract Traderchain is
     return tradingSystem.balanceOf(investor, systemId);
   }
   
+  /// Traders create a trading system
   function createTradingSystem(address baseCurrency) public {
-    require(supportedAssets.contains(baseCurrency), "Traderchain: baseCurrency is not supported");
+    require(supportedFunds.contains(baseCurrency), "Traderchain: baseCurrency is not supported");
 
     address trader = _msgSender();
     uint256 systemId = tradingSystem.createSystem(trader);
@@ -157,7 +193,7 @@ contract Traderchain is
   {
     require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
     require(tokenIn != address(0), "Traderchain: tokenIn is zero");
-    require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
+    require(supportedFunds.contains(tokenIn), "Traderchain: tokenIn is not supported");
     require(amountIn > 0, "Traderchain: amountIn is empty");
         
     address investor = _msgSender();
@@ -204,7 +240,7 @@ contract Traderchain is
     require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
     require(numberOfShares > 0, "Traderchain: numberOfShares is empty");
     require(numberOfShares <= getInvestorShares(systemId, investor), "Traderchain: numberOfShares is more than investor owning shares");
-    require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
+    require(supportedFunds.contains(tokenOut), "Traderchain: tokenOut is not supported");
         
     address vault = tradingSystem.getSystemVault(systemId);    
     uint256 totalShares = totalSystemShares(systemId);
@@ -251,10 +287,11 @@ contract Traderchain is
     onlySystemOwner(systemId) 
     returns (uint256 amountOut)
   { 
+    require(supportedFunds.contains(tokenIn) || supportedFunds.contains(tokenOut), "Traderchain: swapping pair is not supported");
     require(supportedAssets.contains(tokenIn), "Traderchain: tokenIn is not supported");
     require(supportedAssets.contains(tokenOut), "Traderchain: tokenOut is not supported");
     require(tokenIn != tokenOut, "Traderchain: tokenIn and tokenOut must be different");
-    require(amountIn <= systemAssetAmounts[systemId][tokenIn], "Traderchain: amountIn is more than the amount in vault");
+    require(amountIn <= systemAssetAmounts[systemId][tokenIn], "Traderchain: amountIn is greater than the amount in vault");
     
     address vault = tradingSystem.getSystemVault(systemId);
       
@@ -273,10 +310,13 @@ contract Traderchain is
    */
   function _swapAsset(uint256 systemId, address tokenIn, address tokenOut, uint256 amountIn) internal 
     returns (uint256 amountOut)
-  {
+  {    
     require(tradingSystem.getSystemTrader(systemId) != address(0), "Traderchain: systemId not exist");
-    require(amountIn > 0, "Traderchain: amountIn is empty");    
+    require(amountIn > 0, "Traderchain: amountIn is empty");
 
+    uint24 poolFee = getPoolFee(tokenIn, tokenOut);
+    require(poolFee > 0, "Traderchain: poolFee is empty");
+    
     address vault = tradingSystem.getSystemVault(systemId);
 
     IERC20(tokenIn).approve(address(swapRouter), amountIn);

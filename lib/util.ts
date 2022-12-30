@@ -8,7 +8,11 @@ export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 export const WETH = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 export const USDC_WHALE = '0x7abE0cE388281d2aCF297Cb089caef3819b13448';
 export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
-export const INIT_SUPPORT_ASSETS = [USDC, WETH];
+export const INIT_SUPPORT_FUNDS = [USDC, WETH];
+export const INIT_SUPPORT_ASSETS = [
+  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 3000} ] },
+  { assetAddress: WETH, pools: [] },
+];
 export const ASSET_NAMES: any = { [USDC]: 'USDC', [WETH]: 'WETH' };
 
 export const SWAP_ROUTER = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
@@ -67,8 +71,21 @@ class Util {
     this.log({'system': this.system.address});
     
     await this.tc.setTradingSystem(this.system.address);
-    for (let asset of INIT_SUPPORT_ASSETS) {
-      await this.tc.addSupportedAsset(asset);
+
+    for (const fund of INIT_SUPPORT_FUNDS) { 
+      await this.tc.addSupportedFund(fund); 
+    }
+    
+    for (const asset of INIT_SUPPORT_ASSETS) { 
+      await this.tc.addSupportedAsset(asset.assetAddress, asset.pools);
+
+      for (const pool of asset.pools) {
+        const poolFee1 = await this.tc.getPoolFee(pool.tokenIn, pool.tokenOut);
+        const poolFee2 = await this.tc.getPoolFee(pool.tokenOut, pool.tokenIn);
+        this.log({pool, poolFee1, poolFee2});
+        expect(poolFee1).to.equal(pool.fee);
+        expect(poolFee2).to.equal(pool.fee);
+      }
     }
         
     const usdcAmount = this.amountBN(1000, 6);

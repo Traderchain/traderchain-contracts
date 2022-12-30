@@ -2,11 +2,27 @@
 pragma solidity 0.8.17;
 
 interface ITraderchain {
+  struct Pool {
+    address tokenIn;
+    address tokenOut;
+    uint24 fee;
+  }
+
   function setTradingSystem(address _tradingSystem) external;
 
-  function addSupportedAsset(address assetAddress) external;
+  function addSupportedFund(address fundAddress) external;
+
+  function removeSupportedFund(address fundAddress) external;
+
+  function addSupportedAsset(address assetAddress, Pool[] memory pools) external;
 
   function removeSupportedAsset(address assetAddress) external;
+
+  function getPoolFee(address tokenIn, address tokenOut) external view returns (uint24);
+
+  function setPoolFee(address tokenIn, address tokenOut, uint24 fee) external;
+
+  function getSystemBaseCurency(uint256 systemId) external view returns (address);
 
   function getPairPrice(address tokenIn, address tokenOut) external view returns (uint256 pairPrice, address token0);
 
