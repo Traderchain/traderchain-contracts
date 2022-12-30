@@ -13,7 +13,7 @@ export const WETH_WHALE = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
 
 export const INIT_SUPPORT_FUNDS = [USDC, WETH];
 export const INIT_SUPPORT_ASSETS = [
-  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 500} ] },
+  { assetAddress: USDC, pools: [ {tokenIn: WETH, tokenOut: USDC, fee: 3000} ] },
   { assetAddress: WETH, pools: [] },
   { assetAddress: UNI, pools: [ {tokenIn: WETH, tokenOut: UNI, fee: 3000}, {tokenIn: USDC, tokenOut: UNI, fee: 3000} ] },  
 ];
@@ -62,9 +62,16 @@ class Util {
     const signers = await ethers.getSigners();
     
     this.usdc = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", USDC);
-    this.weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);
+    this.weth = await ethers.getContractAt("contracts/interfaces/IWETH.sol:IWETH", WETH);    
     ASSET_CONTRACTS[USDC] = this.usdc;
     ASSET_CONTRACTS[WETH] = this.weth;
+    
+    for (const asset of INIT_SUPPORT_ASSETS) { 
+      const {assetAddress} = asset;
+      if (INIT_SUPPORT_FUNDS.includes(assetAddress))  continue;
+
+      ASSET_CONTRACTS[assetAddress] = await ethers.getContractAt("contracts/interfaces/IERC20.sol:IERC20", assetAddress);
+    }
     
     const Traderchain = await ethers.getContractFactory("Traderchain");
     this.tc = await Traderchain.deploy(SWAP_ROUTER, SWAP_FACTORY);
@@ -98,11 +105,11 @@ class Util {
       }      
     }
         
-    const usdcAmount = this.amountBN(1000, 6);
+    const usdcAmount = this.amountBN(10000, 6);
     await this.takeWhaleUSDC(signers[0].address, usdcAmount);
     await this.takeWhaleUSDC(signers[1].address, usdcAmount);
     
-    const wethAmount = parseEther('1.0');
+    const wethAmount = parseEther('10.0');
     await this.takeWhaleWETH(signers[0].address, wethAmount);
     await this.takeWhaleWETH(signers[1].address, wethAmount);
 
@@ -122,7 +129,7 @@ class Util {
   }
     
   deductFee(amount: any, fee: number) {
-    const d1 = 1000000;
+    const d1 = 1000000000;
     const d2 = d1 / 100;
     return amount.mul(BigNumber.from(d1 - Math.floor(d2*fee))).div(BigNumber.from(d1));
   }
@@ -137,8 +144,13 @@ class Util {
       let value = values[key];
 
       if (BigNumber.isBigNumber(value)) {
-        let decimals = value.lt(BigNumber.from(10).pow(10)) ? (value.lt(BigNumber.from(10).pow(6)) ? 0 : 6) : 18;
-        value = this.amountStr(value, decimals);
+        if (key.includes('Shares')) {
+          value = value.toString();
+        } 
+        else {
+          const decimals = value.lt(BigNumber.from(10).pow(10)) ? (value.lt(BigNumber.from(10).pow(6)) ? 0 : 6) : 18;
+          value = this.amountStr(value, decimals);
+        }
       }
       else if (typeof value == 'object') {
         for (const k in value) {

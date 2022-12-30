@@ -105,9 +105,21 @@ contract Traderchain is
     poolFees[tokenOut][tokenIn] = fee;
   }
 
+  function getSystemAssetCount(uint256 systemId) public view virtual returns (uint256) {
+    return systemAssets.count(systemId);
+  }
+
+  function getSystemAssetAddress(uint256 systemId, uint256 index) public view virtual returns (address) {    
+    return systemAssets.getAddress(systemId, index);
+  }
+
   function getSystemBaseCurrency(uint256 systemId) public view virtual returns (address) {
     return systemBaseCurrencies[systemId];
   }  
+
+  function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
+    return systemAssetAmounts[systemId][assetAddress];
+  }
 
   function getPairPrice(address tokenIn, address tokenOut) public view virtual 
     returns (uint256 sqrtPrice, address token0)
@@ -133,14 +145,6 @@ contract Traderchain is
     else {
       return price > Q192 ? assetAmount * (price / Q192) : assetAmount / (Q192 / price);
     }
-  }
-
-  function getSystemAssetCount(uint256 systemId) public view virtual returns (uint256) {
-    return systemAssets.count(systemId);
-  }
-
-  function getSystemAssetAmount(uint256 systemId, address assetAddress) public view virtual returns (uint256) {
-    return systemAssetAmounts[systemId][assetAddress];
   }
 
   /// System asset value in a base currency
